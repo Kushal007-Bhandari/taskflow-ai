@@ -72,24 +72,32 @@ const DateUtils = {
     if (!dateStr) return '';
     const d = new Date(dateStr);
     const today = new Date();
-    const diff = Math.floor((d - today) / (1000 * 60 * 60 * 24));
-    if (diff === 0) return 'Today';
-    if (diff === 1) return 'Tomorrow';
-    if (diff === -1) return 'Yesterday';
-    if (diff > 1 && diff < 7) return `In ${diff} days`;
-    if (diff < 0 && diff > -7) return `${Math.abs(diff)} days ago`;
+    const dStr = d.toLocaleDateString('en-CA');
+    const todayStr = today.toLocaleDateString('en-CA');
+    const tomorrowStr = new Date(today.getTime() + 86400000).toLocaleDateString('en-CA');
+    const yesterdayStr = new Date(today.getTime() - 86400000).toLocaleDateString('en-CA');
+    if (dStr === todayStr)     return 'Today';
+    if (dStr === tomorrowStr)  return 'Tomorrow';
+    if (dStr === yesterdayStr) return 'Yesterday';
+    const diffDays = Math.round((new Date(dStr) - new Date(todayStr)) / 86400000);
+    if (diffDays > 1 && diffDays < 7)  return `In ${diffDays} days`;
+    if (diffDays < 0 && diffDays > -7) return `${Math.abs(diffDays)} days ago`;
     return this.format(dateStr);
   },
 
   isOverdue(dateStr) {
     if (!dateStr) return false;
-    return new Date(dateStr) < new Date() && new Date(dateStr).toDateString() !== new Date().toDateString();
+    const dStr = new Date(dateStr).toLocaleDateString('en-CA');
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    return dStr < todayStr;
   },
 
   isSoon(dateStr) {
     if (!dateStr) return false;
-    const diff = new Date(dateStr) - new Date();
-    return diff > 0 && diff < 3 * 24 * 60 * 60 * 1000;
+    const dStr = new Date(dateStr).toLocaleDateString('en-CA');
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const in3Str = new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-CA');
+    return dStr >= todayStr && dStr <= in3Str;
   },
 
   toInputFormat(dateStr) {
