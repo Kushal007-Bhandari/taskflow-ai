@@ -1,0 +1,12 @@
+{
+  "name": "taskflow-ai",
+  "version": "1.0.0",
+  "description": "Advanced AI-powered Todo App - BCA Project II",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "bcryptjs": "^2.4.3"
+  }
+}
