@@ -18,6 +18,9 @@
     <button class="btn btn-ghost btn-icon" onclick="toggleSearch()" aria-label="Search">
       <span id="search-icon-btn"></span>
     </button>
+    <button class="btn btn-primary btn-icon" onclick="openAddModal()" aria-label="New Task">
+      <span id="header-plus"></span>
+    </button>
   </div>
 </header>
 
@@ -234,6 +237,7 @@ async function init() {
 
 function injectIcons() {
   document.getElementById('menu-icon').innerHTML        = Icons.menu(20);
+  document.getElementById('header-plus').innerHTML     = Icons.plus(20);
   document.getElementById('search-icon-btn').innerHTML  = Icons.search(20);
   document.getElementById('search-icon-inner').innerHTML= Icons.search(16);
   document.getElementById('nav-home').innerHTML         = Icons.home(22);
