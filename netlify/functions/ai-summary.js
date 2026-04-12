@@ -1,171 +1,142 @@
 // netlify/functions/ai-summary.js
-// Calls Hugging Face Inference API — no model download, runs server-side
-
-const { neon } = require('@neondatabase/serverless');
-
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
-
-const HF_MODEL = 'mistralai/Mistral-7B-Instruct-v0.3';
+// Handles both AI summary generation and chat mode
 
 exports.handler = async (event) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') return res(405, { error: 'Method not allowed' });
-
-  // Verify session
-  const sql   = neon(process.env.DATABASE_URL);
-  const token = event.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res(401, { error: 'Unauthorized' });
-
-  const [session] = await sql`
-    SELECT user_id FROM sessions WHERE token = ${token} AND expires_at > NOW()
-  `;
-  if (!session) return res(401, { error: 'Invalid session' });
-
-  const { todos, stats, range } = JSON.parse(event.body || '{}');
-
-  // Build a smart prompt
-  const prompt = buildPrompt(todos, stats, range);
-
-  // If no HF token configured, return smart fallback
-  if (!process.env.HF_TOKEN) {
-    return res(200, { summary: smartFallback(todos, stats, range), source: 'fallback' });
-  }
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   try {
-    const hfRes = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.HF_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 200,
-          temperature: 0.7,
-          top_p: 0.9,
-          repetition_penalty: 1.1,
-          return_full_text: false,
-        },
-      }),
-    });
+    const body = JSON.parse(event.body || '{}');
+    const { mode = 'summary', prompt, name, context } = body;
+    const HF_TOKEN = process.env.HF_TOKEN;
 
-    if (!hfRes.ok) {
-      // Model may be loading (503) — return fallback
-      const errText = await hfRes.text();
-      console.error('HF API error:', hfRes.status, errText);
-      return res(200, { summary: smartFallback(todos, stats, range), source: 'fallback' });
+    // ── Try Hugging Face API ──────────────────────────────────
+    if (HF_TOKEN && prompt) {
+      try {
+        const hfRes = await fetch(
+          'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${HF_TOKEN}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              inputs: prompt,
+              parameters: {
+                max_new_tokens: mode === 'chat' ? 200 : 280,
+                temperature: mode === 'chat' ? 0.4 : 0.72, // lower temp for chat = less hallucination
+                top_p: 0.9,
+                repetition_penalty: 1.12,
+                do_sample: true,
+                return_full_text: false,
+              },
+            }),
+          }
+        );
+
+        if (hfRes.ok) {
+          const hfData = await hfRes.json();
+          let text = Array.isArray(hfData)
+            ? (hfData[0]?.generated_text || '')
+            : (hfData.generated_text || '');
+
+          // Clean artifacts
+          text = text
+            .replace(/\[INST\][\s\S]*?\[\/INST\]/g, '')
+            .replace(/<s>|<\/s>/g, '')
+            .replace(/^(Sure[!,.]?\s*|Of course[!,.]?\s*|Absolutely[!,.]?\s*|Certainly[!,.]?\s*)/i, '')
+            .replace(/^(Here'?s?( is)?( your)?[^:]*:\s*)/i, '')
+            .split('\n').filter(l => l.trim()).join(' ')
+            .trim();
+
+          if (text && text.length > 20) {
+            return { statusCode: 200, headers, body: JSON.stringify({ summary: text, source: 'mistral-7b' }) };
+          }
+        } else {
+          console.error('HF error:', hfRes.status, (await hfRes.text()).slice(0, 150));
+        }
+      } catch (hfErr) {
+        console.error('HF fetch error:', hfErr.message);
+      }
     }
 
-    const data = await hfRes.json();
+    // ── Fallback: build a rule-based response ─────────────────
+    const { doneTasks = [], openTasks = [], overdueTasks = [], cats = [],
+            bestDay, total = 0, completed = 0, overdue = 0, rate = 0,
+            rangeLabel = 'this period', userMessage } = body;
 
-    // Extract generated text
-    let text = '';
-    if (Array.isArray(data) && data[0]?.generated_text) {
-      text = data[0].generated_text;
-    } else if (data?.generated_text) {
-      text = data.generated_text;
+    let summary = '';
+
+    if (mode === 'chat' && userMessage) {
+      // Rule-based chat fallback
+      const q = userMessage.toLowerCase();
+
+      if (q.includes('overdue')) {
+        summary = overdueTasks.length === 0
+          ? `No overdue tasks — you're on top of everything!`
+          : `You have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}: ${overdueTasks.slice(0,4).map(t => `"${t.title}"`).join(', ')}.`;
+      } else if (q.includes('pending') || q.includes('left')) {
+        summary = openTasks.length === 0
+          ? `No pending tasks right now — great job!`
+          : `You have ${openTasks.length} pending tasks. Top ones: ${openTasks.slice(0,4).map(t => `"${t.title}" (${t.priority})`).join(', ')}.`;
+      } else if (q.includes('complet') || q.includes('done')) {
+        summary = doneTasks.length === 0
+          ? `No completed tasks in this period yet.`
+          : `You completed ${doneTasks.length} tasks this period: ${doneTasks.slice(0,4).map(t => `"${t.title}"`).join(', ')}.`;
+      } else if (q.includes('high') || q.includes('urgent')) {
+        const high = openTasks.filter(t => t.priority === 'high');
+        summary = high.length === 0
+          ? `No high-priority tasks pending right now.`
+          : `${high.length} high-priority task${high.length > 1 ? 's' : ''} pending: ${high.map(t => `"${t.title}"`).join(', ')}.`;
+      } else if (q.includes('focus') || q.includes('next') || q.includes('should')) {
+        const top = openTasks[0];
+        summary = top
+          ? `I'd suggest working on "${top.title}" next${top.description ? ` — ${top.description}` : ''}. It's ${top.priority} priority.`
+          : `No pending tasks — you're all clear!`;
+      } else {
+        summary = `Based on your data: ${total} tasks total, ${completed} completed (${rate}%), ${overdue} overdue. Try asking "what's overdue?", "what should I focus on?", or "show pending tasks".`;
+      }
+    } else {
+      // Rule-based summary fallback
+      if (total === 0) {
+        summary = `Hey ${name}! No tasks recorded ${rangeLabel} yet. Add some tasks to get your first AI-powered productivity insight!`;
+      } else {
+        const recentNames = doneTasks.slice(0,3).map(t => `"${t.title}"`).join(', ');
+        const bestCat = [...cats].sort((a,b) => b.done - a.done)[0];
+        const worstCat = cats.filter(c => c.total >= 2).sort((a,b) => a.rate - b.rate)[0];
+
+        if (rate >= 75) summary = `${name}, you're crushing it ${rangeLabel}! `;
+        else if (rate >= 50) summary = `Nice work ${rangeLabel}, ${name}! `;
+        else summary = `Hey ${name}, here's your ${rangeLabel} recap. `;
+
+        summary += `You completed ${completed} of ${total} tasks (${rate}%)`;
+        if (recentNames) summary += ` — including ${recentNames}`;
+        summary += `. `;
+
+        if (bestCat?.done > 0) summary += `Your strongest category was "${bestCat.name}" (${bestCat.done} done). `;
+        if (overdue > 0) summary += `${overdue} task${overdue > 1 ? 's are' : ' is'} overdue and waiting for you. `;
+        if (bestDay) summary += `${bestDay} is your power day — protect it. `;
+
+        if (worstCat && worstCat.rate < 40)
+          summary += `💡 Tip: "${worstCat.name}" is only ${worstCat.rate}% done — give it 20 focused minutes tomorrow.`;
+        else if (total - completed > 5)
+          summary += `💡 Tip: Pick your 3 most important pending tasks and finish those before adding new ones.`;
+        else
+          summary += `💡 Tip: Keep the momentum — consistency is what separates productive people from the rest!`;
+      }
     }
 
-    // Clean up — remove any leftover prompt text
-    text = text.replace(/\[INST\].*?\[\/INST\]/gs, '').trim();
-    text = text.split('[INST]')[0].trim();
-    text = text.split('</s>')[0].trim();
-
-    if (!text || text.length < 20) {
-      return res(200, { summary: smartFallback(todos, stats, range), source: 'fallback' });
-    }
-
-    return res(200, { summary: text, source: 'ai' });
+    return { statusCode: 200, headers, body: JSON.stringify({ summary, source: 'fallback' }) };
 
   } catch (err) {
-    console.error('AI summary error:', err);
-    return res(200, { summary: smartFallback(todos, stats, range), source: 'fallback' });
+    console.error('ai-summary error:', err);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server error' }) };
   }
 };
-
-// ── Build prompt ─────────────────────────────────────────────
-function buildPrompt(todos = [], stats = {}, range = 30) {
-  const rangeName  = range === 7 ? 'week' : range === 30 ? 'month' : range === 90 ? '3 months' : range === 180 ? '6 months' : 'year';
-  const total      = parseInt(stats.total) || 0;
-  const completed  = parseInt(stats.completed) || 0;
-  const overdue    = parseInt(stats.overdue) || 0;
-  const rate       = total > 0 ? Math.round(completed / total * 100) : 0;
-
-  // Category breakdown
-  const cats = {};
-  todos.forEach(t => {
-    const c = t.category || 'General';
-    if (!cats[c]) cats[c] = { total: 0, done: 0 };
-    cats[c].total++;
-    if (t.status === 'completed') cats[c].done++;
-  });
-  const catLines = Object.entries(cats)
-    .map(([n, d]) => `  - ${n}: ${d.done}/${d.total} completed`)
-    .join('\n');
-
-  const highDone  = todos.filter(t => t.priority === 'high' && t.status === 'completed').length;
-  const highTotal = todos.filter(t => t.priority === 'high').length;
-  const recentDone = todos.filter(t => t.status === 'completed').slice(0, 5).map(t => t.title).join(', ');
-
-  return `[INST] You are a helpful productivity coach. Analyze this task data and write a warm, specific, 3-sentence productivity summary. Mention actual numbers, highlight wins, and give one actionable tip.
-
-Task data for the past ${rangeName}:
-- Created: ${total} tasks, Completed: ${completed} (${rate}% rate)
-- Overdue: ${overdue}
-- High priority: ${highDone}/${highTotal} completed
-- By category:
-${catLines || '  - No categories'}
-- Recently completed: ${recentDone || 'none yet'}
-
-Write the summary now: [/INST]`;
-}
-
-// ── Smart rule-based fallback ─────────────────────────────────
-function smartFallback(todos = [], stats = {}, range = 30) {
-  const total     = parseInt(stats.total) || 0;
-  const completed = parseInt(stats.completed) || 0;
-  const overdue   = parseInt(stats.overdue) || 0;
-  const rate      = total > 0 ? Math.round(completed / total * 100) : 0;
-  const name      = range === 7 ? 'week' : range === 30 ? 'month' : `${range} days`;
-
-  if (total === 0) return `No tasks recorded in this period yet. Start adding tasks to your dashboard and completing them to unlock productivity insights here.`;
-
-  const cats = {};
-  todos.forEach(t => {
-    const c = t.category || 'General';
-    if (!cats[c]) cats[c] = { total: 0, done: 0 };
-    cats[c].total++;
-    if (t.status === 'completed') cats[c].done++;
-  });
-
-  const topCat  = Object.entries(cats).sort((a,b) => b[1].total - a[1].total)[0];
-  const bestCat = Object.entries(cats)
-    .filter(([,d]) => d.total >= 2)
-    .sort((a,b) => (b[1].done/b[1].total) - (a[1].done/a[1].total))[0];
-
-  const highDone = todos.filter(t => t.priority === 'high' && t.status === 'completed').length;
-
-  let s = '';
-  if      (rate >= 80) s += `Outstanding work this ${name} — you completed ${completed} of ${total} tasks with a ${rate}% success rate, putting you in top productivity territory. `;
-  else if (rate >= 60) s += `Solid effort this ${name} — ${completed} of ${total} tasks completed at a ${rate}% rate. `;
-  else if (rate >= 40) s += `You completed ${completed} of ${total} tasks this ${name} (${rate}%) — there's room to push higher. `;
-  else                 s += `You tackled ${completed} of ${total} tasks this ${name} with a ${rate}% completion rate. `;
-
-  if (topCat) s += `Your most active area was "${topCat[0]}" with ${topCat[1].total} task${topCat[1].total!==1?'s':''}. `;
-  if (highDone > 0) s += `You completed ${highDone} high-priority item${highDone>1?'s':''} — great focus on what matters. `;
-  if (overdue > 0)  s += `Watch out — ${overdue} task${overdue>1?'s are':' is'} overdue and needs your attention. `;
-  if (bestCat && Math.round(bestCat[1].done/bestCat[1].total*100)===100)
-    s += `Perfect 100% completion rate in "${bestCat[0]}" this period!`;
-
-  return s.trim();
-}
-
-function res(status, body) {
-  return { statusCode: status, headers, body: JSON.stringify(body) };
-}

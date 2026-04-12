@@ -63,6 +63,9 @@
   </div>
 
   <nav class="drawer-nav">
+      <button class="btn btn-primary btn-full" style="margin-bottom:16px" onclick="openAddModal();Drawer.close()">
+        <span id="d-plus"></span> New Task
+      </button>
     <div class="drawer-section-label">Navigation</div>
     <a href="dashboard.html" class="drawer-nav-item active">
       <span id="d-home"></span> Dashboard
@@ -247,6 +250,7 @@ function injectIcons() {
   document.getElementById('nav-list').innerHTML         = Icons.list(22);
   document.getElementById('drawer-logo-icon').innerHTML = Icons.check(18);
   document.getElementById('drawer-close').innerHTML     = Icons.x(18);
+  document.getElementById('d-plus').innerHTML           = Icons.plus(16);
   document.getElementById('d-home').innerHTML           = Icons.home(18);
   document.getElementById('d-chart').innerHTML          = Icons.chart(18);
   document.getElementById('d-brain').innerHTML          = Icons.brain(18);
