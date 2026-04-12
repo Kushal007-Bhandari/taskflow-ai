@@ -1,249 +1,233 @@
-// js/ai.js — AI Summary + Chat
-// Uses Hugging Face Inference API (Mistral-7B-Instruct) server-side
+// js/ai.js — AI Summary + Chat powered by Mistral-7B via Hugging Face
 
 const AI = {
 
-  // ── Build the full task context string ─────────────────────
-  buildContext(allTodos, statsData, userName, range) {
+  // ── Build concise context (fits Mistral context window) ────
+  buildContext(statsData, allTodos, userName, range) {
     const name  = (userName || 'User').split(' ')[0];
-    const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     const days  = parseInt(range) || 30;
+    const ov    = statsData?.overview || {};
+    const DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-    const total     = parseInt(statsData?.overview?.recent_total)     || 0;
-    const completed = parseInt(statsData?.overview?.recent_completed) || 0;
-    const overdue   = parseInt(statsData?.overview?.overdue)          || 0;
+    const total     = parseInt(ov.recent_total)     || 0;
+    const completed = parseInt(ov.recent_completed) || 0;
+    const overdue   = parseInt(ov.overdue)          || 0;
     const rate      = total > 0 ? Math.round(completed / total * 100) : 0;
     const pending   = total - completed;
 
-    const rangeLabel = days <= 7 ? 'past 7 days' : days <= 30 ? 'past 30 days'
-      : days <= 90 ? 'past 3 months' : days <= 180 ? 'past 6 months' : 'past year';
+    const rangeLabel = days <= 7 ? 'last 7 days' : days <= 30 ? 'last 30 days'
+      : days <= 90 ? 'last 3 months' : days <= 180 ? 'last 6 months' : 'last year';
 
-    // Category stats
-    const cats = (statsData?.categoryBreakdown || []).map(c => ({
-      name:  c.name,
-      total: parseInt(c.count)     || 0,
-      done:  parseInt(c.completed) || 0,
-      rate:  c.count > 0 ? Math.round(c.completed / c.count * 100) : 0,
-    }));
+    // Categories
+    const cats = (statsData?.categoryBreakdown || []).map(c =>
+      `${c.name}: ${c.completed}/${c.count} done`
+    ).join(', ');
 
-    // Best day of week
-    const dayData   = (statsData?.byDayOfWeek || []).sort((a,b) => b.count - a.count);
-    const bestDay   = dayData[0] ? DAYS[parseInt(dayData[0].dow)] : null;
+    // Best day
+    const dayData = (statsData?.byDayOfWeek || []).sort((a,b) => b.count - a.count);
+    const bestDay = dayData[0] ? DAYS[parseInt(dayData[0].dow)] : null;
 
-    // All todos split by status
-    const allList   = allTodos || statsData?.allTodosForAI || [];
-    const doneTasks = allList.filter(t => t.status === 'completed');
-    const openTasks = allList.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
-    const overdueTasks = openTasks.filter(t => t.due_date && new Date(t.due_date) < new Date());
+    // All tasks with title + description
+    const all = (allTodos || statsData?.allTodosForAI || statsData?.recentTodos || []);
 
-    // Format task with title + description
-    const fmtTask = (t) => {
+    const fmt = (t) => {
       const desc = t.description?.trim();
-      const due  = t.due_date ? ` | due ${new Date(t.due_date).toLocaleDateString('en-CA')}` : '';
-      const over = t.due_date && new Date(t.due_date) < new Date() ? ' [OVERDUE]' : '';
-      return `• "${t.title}"${desc ? ` — ${desc}` : ''} (${t.priority || 'medium'} priority, ${t.category || 'General'}${due}${over})`;
+      const due  = t.due_date ? `, due ${t.due_date}` : '';
+      const over = t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed' ? ' [OVERDUE]' : '';
+      return `  - "${t.title}"${desc ? `: ${desc}` : ''} [${t.priority || 'medium'} priority, ${t.category || 'General'}${due}${over}]`;
     };
 
+    const doneTasks    = all.filter(t => t.status === 'completed');
+    const openTasks    = all.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
+    const overdueTasks = openTasks.filter(t => t.due_date && new Date(t.due_date) < new Date());
+
     const lines = [
-      `=== TASKFLOW AI — TASK DATA FOR ${name.toUpperCase()} ===`,
-      `Period: ${rangeLabel}`,
-      ``,
-      `SUMMARY STATS:`,
-      `Total tasks: ${total} | Completed: ${completed} (${rate}%) | Pending: ${pending} | Overdue: ${overdue}`,
-      ``,
-    ];
+      `USER: ${name} | PERIOD: ${rangeLabel}`,
+      `STATS: ${total} total, ${completed} completed (${rate}%), ${pending} pending, ${overdue} overdue`,
+      cats ? `CATEGORIES: ${cats}` : '',
+      bestDay ? `BEST DAY: ${bestDay}` : '',
+    ].filter(Boolean);
 
-    if (cats.length) {
-      lines.push(`CATEGORY PERFORMANCE:`);
-      cats.forEach(c => lines.push(`  ${c.name}: ${c.done}/${c.total} done (${c.rate}%)`));
-      lines.push(``);
+    if (doneTasks.length > 0) {
+      lines.push(`\nCOMPLETED (${doneTasks.length}):`);
+      doneTasks.slice(0, 12).forEach(t => lines.push(fmt(t)));
     }
 
-    if (bestDay) lines.push(`BEST DAY: ${bestDay} has the most completions`);
-
-    if (doneTasks.length) {
-      lines.push(``, `COMPLETED TASKS (${doneTasks.length}):`);
-      doneTasks.slice(0, 15).forEach(t => lines.push(fmtTask(t)));
+    if (openTasks.length > 0) {
+      lines.push(`\nPENDING/IN-PROGRESS (${openTasks.length}):`);
+      openTasks.slice(0, 12).forEach(t => lines.push(fmt(t)));
     }
 
-    if (openTasks.length) {
-      lines.push(``, `PENDING / IN PROGRESS TASKS (${openTasks.length}):`);
-      openTasks.slice(0, 15).forEach(t => lines.push(fmtTask(t)));
-    }
+    return {
+      context: lines.join('\n'),
+      name, rangeLabel, total, completed, overdue, rate, pending,
+      cats, bestDay, doneTasks, openTasks, overdueTasks,
+      allCount: all.length,
+    };
+  },
 
-    if (overdueTasks.length) {
-      lines.push(``, `OVERDUE TASKS (${overdueTasks.length}):`);
-      overdueTasks.forEach(t => lines.push(fmtTask(t)));
-    }
-
-    lines.push(``, `=== END OF DATA ===`);
-
-    return { context: lines.join('\n'), name, rangeLabel, total, completed, overdue, rate, pending, cats, bestDay, doneTasks, openTasks, overdueTasks };
+  // ── Call HF API ────────────────────────────────────────────
+  async _callAPI(prompt, isChat = false) {
+    const res = await fetch('/api/ai-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, mode: isChat ? 'chat' : 'summary' }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.summary || data.summary.length < 10) throw new Error('Empty response');
+    return data.summary;
   },
 
   // ── Generate Productivity Summary ─────────────────────────
-  async summarize(recentTodos, overview, range, onProgress, statsData, userName) {
+  async summarize(recentTodos, overviewLegacy, range, onProgress, statsData, userName) {
     onProgress?.('Reading your task data...');
 
     const allTodos = statsData?.allTodosForAI || recentTodos || [];
+    const ctx = AI.buildContext(statsData, allTodos, userName, range);
     const { context, name, rangeLabel, total, completed, overdue, rate,
-            cats, bestDay, doneTasks, openTasks, overdueTasks } = AI.buildContext(allTodos, statsData, userName, range);
+            doneTasks, openTasks, cats, bestDay } = ctx;
 
     onProgress?.('Crafting your personal summary...');
 
-    const prompt = `<s>[INST] You are a warm, insightful productivity coach. Write a personal productivity message for ${name} using ONLY the data below — do not invent anything.
+    const prompt = `<s>[INST] You are ${name}'s personal productivity coach. Write a warm, personal 4-5 sentence productivity message using ONLY the data below. Requirements: address ${name} by name, mention 2-3 specific task titles from the data in quotes, use real numbers, give 1 actionable tip based on their weakest area. Sound like a supportive friend, not a robot.
 
-Rules:
-- Address ${name} by name
-- Mention 2-3 specific task titles (use quotes)
-- Reference actual numbers
-- Be warm, human, conversational — like a friend who coaches them
-- Give 1 specific actionable tip based on their weakest area
-- Maximum 5 sentences
-- NEVER make up tasks or data not in the context
-
+TASK DATA:
 ${context}
 
-Write ${name}'s personal productivity message: [/INST]`;
+Write ${name}'s productivity message now: [/INST]`;
 
     try {
-      const res = await fetch('/api/ai-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'summary',
-          prompt,
-          context,
-          name, rangeLabel, total, completed, overdue, rate,
-          cats, bestDay,
-          doneTasks: doneTasks.slice(0,10).map(t => ({ title: t.title, description: t.description, priority: t.priority, category: t.category })),
-          openTasks: openTasks.slice(0,10).map(t => ({ title: t.title, description: t.description, priority: t.priority, category: t.category })),
-          overdueTasks: overdueTasks.map(t => ({ title: t.title, priority: t.priority })),
-        }),
-      });
-      if (!res.ok) throw new Error('API error');
-      const data = await res.json();
-      if (!data.summary) throw new Error('Empty response');
-      return data.summary;
-    } catch(err) {
-      return AI._fallbackSummary({ name, total, completed, pending: total - completed, overdue, rate, cats, bestDay, doneTasks, openTasks, rangeLabel });
+      return await AI._callAPI(prompt, false);
+    } catch (err) {
+      console.warn('Summary API failed:', err.message);
+      return AI._fallbackSummary(ctx);
     }
   },
 
-  // ── Chat with AI about tasks ───────────────────────────────
+  // ── Chat with AI ───────────────────────────────────────────
   async chat(userMessage, history, statsData, allTodos, userName) {
-    const { context, name } = AI.buildContext(allTodos, statsData, userName, statsData?.range || 30);
+    const ctx = AI.buildContext(statsData, allTodos, userName, statsData?.range || 30);
+    const { context, name } = ctx;
 
-    // Build conversation history for Mistral format
-    const historyStr = history.slice(-6).map(m =>
-      m.role === 'user' ? `User: ${m.content}` : `Assistant: ${m.content}`
+    // Build conversation turns
+    const turns = history.slice(-8).map(m =>
+      m.role === 'user' ? `${name}: ${m.content}` : `Assistant: ${m.content}`
     ).join('\n');
 
-    const prompt = `<s>[INST] You are a helpful productivity assistant for ${name}. You have access to their complete task data below. Answer questions ONLY based on this data — if information is not in the data, say "I don't have that information in your task data." Be concise, friendly, and specific. Never make up tasks or statistics.
+    const prompt = `<s>[INST] You are a smart productivity assistant. You have ${name}'s complete task data below. Answer their question using ONLY this data — be specific, friendly and helpful. If asked something not in the data, say so honestly. For greetings, give a warm welcome and a quick summary of their tasks.
 
+TASK DATA:
 ${context}
 
-${historyStr ? `Previous conversation:\n${historyStr}\n` : ''}
-${name}'s question: ${userMessage} [/INST]`;
+${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name} says: ${userMessage} [/INST]`;
 
     try {
-      const res = await fetch('/api/ai-summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'chat',
-          prompt,
-          context,
-          name,
-          userMessage,
-          history: history.slice(-6),
-        }),
-      });
-      if (!res.ok) throw new Error('API error');
-      const data = await res.json();
-      if (!data.summary) throw new Error('Empty');
-      return data.summary;
-    } catch(err) {
-      // Offline chat fallback — answer from data directly
-      return AI._fallbackChat(userMessage, statsData, allTodos, name);
+      return await AI._callAPI(prompt, true);
+    } catch (err) {
+      console.warn('Chat API failed:', err.message);
+      return AI._fallbackChat(userMessage, ctx);
     }
   },
 
-  // ── Fallback summary (no API) ─────────────────────────────
-  _fallbackSummary({ name, total, completed, pending, overdue, rate, cats, bestDay, doneTasks, openTasks, rangeLabel }) {
-    if (total === 0) return `Hey ${name}! No tasks recorded ${rangeLabel} yet — add some tasks to your dashboard and come back for your first AI-powered productivity insight!`;
+  // ── Fallback Summary ───────────────────────────────────────
+  _fallbackSummary(ctx) {
+    const { name, total, completed, pending, overdue, rate,
+            doneTasks, openTasks, cats, bestDay, rangeLabel } = ctx;
 
-    const bestCat = [...cats].sort((a,b) => b.done - a.done)[0];
-    const worstCat = cats.filter(c => c.total >= 2).sort((a,b) => a.rate - b.rate)[0];
-    const recentDone = doneTasks.slice(0,3).map(t => `"${t.title}"`).join(', ');
+    if (total === 0) return `Hey ${name}! No tasks recorded ${rangeLabel} yet — head to your dashboard and add some tasks to get your first productivity insight!`;
 
-    let msg = rate >= 75
-      ? `${name}, you're on fire ${rangeLabel}! `
-      : rate >= 50 ? `Good progress ${rangeLabel}, ${name}! `
-      : `Hey ${name}, let's look at ${rangeLabel}. `;
+    const topDone  = doneTasks.slice(0, 3).map(t => `"${t.title}"`).join(', ');
+    const catArr   = (cats || '').split(', ').filter(Boolean);
+    const bestCat  = catArr[0]?.split(':')[0] || null;
+
+    let msg = rate >= 75 ? `${name}, you're absolutely crushing it ${rangeLabel}! `
+            : rate >= 50 ? `Great work ${rangeLabel}, ${name}! `
+            : rate >= 25 ? `Hey ${name}, you made progress ${rangeLabel}. `
+            : `${name}, ${rangeLabel} was a tough one. `;
 
     msg += `You completed ${completed} of ${total} tasks (${rate}%)`;
-    if (recentDone) msg += ` — including ${recentDone}`;
+    if (topDone) msg += ` — including ${topDone}`;
     msg += `. `;
-
-    if (bestCat?.done > 0) msg += `Your "${bestCat.name}" category was your strongest area with ${bestCat.done} tasks done. `;
-    if (overdue > 0) msg += `You have ${overdue} overdue task${overdue > 1 ? 's' : ''} that need your attention. `;
-    if (bestDay) msg += `${bestDay} is your most productive day — use it wisely. `;
-
-    if (worstCat && worstCat.rate < 40) msg += `💡 Tip: Spend 20 focused minutes on "${worstCat.name}" tasks tomorrow — they're only ${worstCat.rate}% done.`;
-    else if (pending > 5) msg += `💡 Tip: Pick your top 3 pending tasks and ignore the rest until they're done.`;
-    else msg += `💡 Tip: Keep your streak going — consistency beats intensity every time!`;
+    if (bestCat) msg += `Your "${bestCat}" tasks were the highlight. `;
+    if (overdue > 0) msg += `You have ${overdue} overdue task${overdue > 1 ? 's' : ''} — tackle those first tomorrow. `;
+    if (bestDay) msg += `${bestDay} is your power day — block it for deep work. `;
+    if (pending > 3) msg += `💡 Tip: You have ${pending} tasks pending — pick just 3 priorities for tomorrow and ignore the rest.`;
+    else msg += `💡 Keep the momentum going — small daily wins compound into huge results!`;
 
     return msg;
   },
 
-  // ── Fallback chat (no API) ────────────────────────────────
-  _fallbackChat(question, statsData, allTodos, name) {
-    const q = question.toLowerCase();
-    const all = allTodos || statsData?.allTodosForAI || [];
-    const open = all.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
-    const done = all.filter(t => t.status === 'completed');
-    const overdue = open.filter(t => t.due_date && new Date(t.due_date) < new Date());
+  // ── Fallback Chat (smart keyword + data-driven) ────────────
+  _fallbackChat(question, ctx) {
+    const { name, total, completed, pending, overdue, rate,
+            doneTasks, openTasks, overdueTasks, cats, bestDay, rangeLabel } = ctx;
+    const q = question.toLowerCase().trim();
 
-    if (q.includes('overdue')) {
-      if (!overdue.length) return `Good news ${name} — you have no overdue tasks right now! 🎉`;
-      return `You have ${overdue.length} overdue task${overdue.length > 1 ? 's' : ''}: ${overdue.slice(0,5).map(t => `"${t.title}"`).join(', ')}. Tackle the highest priority one first!`;
+    // Greeting
+    if (/^(hi|hey|hello|good|howdy|sup|yo|hii|helo|how are)/.test(q)) {
+      if (total === 0) return `Hey ${name}! 👋 Looks like you haven't added any tasks yet. Head to the dashboard to add some, then come back and ask me anything about them!`;
+      return `Hey ${name}! 👋 Here's a quick snapshot: you have ${total} tasks ${rangeLabel}, ${completed} completed (${rate}%), and ${pending} still pending${overdue > 0 ? ` with ${overdue} overdue` : ''}. What would you like to dive into?`;
     }
-    if (q.includes('pending') || q.includes('left') || q.includes('remaining')) {
-      if (!open.length) return `You have no pending tasks right now — everything's done! 🎉`;
-      return `You have ${open.length} pending task${open.length > 1 ? 's' : ''}: ${open.slice(0,5).map(t => `"${t.title}" (${t.priority})`).join(', ')}${open.length > 5 ? ` and ${open.length - 5} more` : ''}.`;
+
+    // Overdue
+    if (/overdue|late|past due|missed/.test(q)) {
+      if (!overdueTasks.length) return `Great news ${name} — no overdue tasks! You're on top of everything. 🎉`;
+      return `You have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}: ${overdueTasks.map(t => `"${t.title}" (${t.priority})`).join(', ')}. Tackle the highest priority one first!`;
     }
-    if (q.includes('complet') || q.includes('done') || q.includes('finish')) {
-      if (!done.length) return `No completed tasks in this period yet — go mark something done!`;
-      return `You've completed ${done.length} task${done.length > 1 ? 's' : ''} in this period. Recent ones: ${done.slice(0,4).map(t => `"${t.title}"`).join(', ')}.`;
+
+    // Pending / remaining
+    if (/pending|remaining|left|not done|incomplete|unfinished/.test(q)) {
+      if (!openTasks.length) return `You have no pending tasks ${name} — everything's done! 🎉`;
+      return `${pending} pending task${pending > 1 ? 's' : ''}: ${openTasks.slice(0, 5).map(t => `"${t.title}" (${t.priority})`).join(', ')}${openTasks.length > 5 ? ` and ${openTasks.length - 5} more` : ''}.`;
     }
-    if (q.includes('high priority') || q.includes('urgent') || q.includes('important')) {
-      const high = open.filter(t => t.priority === 'high');
-      if (!high.length) return `No high-priority tasks pending right now — great job staying on top of them!`;
-      return `You have ${high.length} high-priority task${high.length > 1 ? 's' : ''} pending: ${high.map(t => `"${t.title}"`).join(', ')}.`;
+
+    // Completed / done
+    if (/complet|done|finish|achiev|accomplishe/.test(q)) {
+      if (!doneTasks.length) return `No completed tasks ${rangeLabel} yet — go mark something done!`;
+      return `You've completed ${completed} tasks ${rangeLabel}! Recent ones: ${doneTasks.slice(0, 4).map(t => `"${t.title}"`).join(', ')}.`;
     }
-    if (q.includes('categor')) {
-      const cats = statsData?.categoryBreakdown || [];
-      if (!cats.length) return `I don't have category data loaded right now.`;
-      return `Your categories: ${cats.map(c => `${c.name} (${c.completed}/${c.count} done)`).join(', ')}.`;
+
+    // High priority / urgent
+    if (/high|urgent|important|critical/.test(q)) {
+      const high = openTasks.filter(t => t.priority === 'high');
+      if (!high.length) return `No high-priority tasks pending right now — nice job staying on top of them!`;
+      return `${high.length} high-priority task${high.length > 1 ? 's' : ''} pending: ${high.map(t => `"${t.title}"`).join(', ')}.`;
     }
-    if (q.includes('rate') || q.includes('percent') || q.includes('%') || q.includes('score')) {
-      const ov = statsData?.overview;
-      const r = ov?.recent_total > 0 ? Math.round(ov.recent_completed / ov.recent_total * 100) : 0;
-      return `Your completion rate this period is ${r}% — ${r >= 70 ? 'excellent!' : r >= 50 ? 'good, keep pushing.' : 'there is room to improve.'}`;
-    }
-    if (q.includes('next') || q.includes('should i') || q.includes('focus') || q.includes('today')) {
-      const topTask = open.sort((a,b) => {
+
+    // What to focus on / today / next
+    if (/focus|today|next|should i|work on|start|priority/.test(q)) {
+      const topTask = [...openTasks].sort((a, b) => {
         const pw = { high: 3, medium: 2, low: 1 };
-        const ov = (t) => t.due_date && new Date(t.due_date) < new Date() ? 1 : 0;
+        const ov = t => t.due_date && new Date(t.due_date) < new Date() ? 2 : 0;
         return (pw[b.priority] || 0) + ov(b) - ((pw[a.priority] || 0) + ov(a));
       })[0];
-      if (!topTask) return `No pending tasks — you're all clear!`;
-      return `I'd suggest working on "${topTask.title}" next${topTask.description ? ` — ${topTask.description}` : ''}. It's ${topTask.priority} priority${topTask.due_date ? ` and due on ${new Date(topTask.due_date).toLocaleDateString()}` : ''}.`;
+      if (!topTask) return `No pending tasks ${name} — you're all clear! Add new tasks to keep tracking.`;
+      const desc = topTask.description?.trim();
+      return `I'd focus on "${topTask.title}" first${desc ? ` — ${desc}` : ''}. It's ${topTask.priority} priority${topTask.due_date ? ` and due ${topTask.due_date}` : ''}.`;
+    }
+
+    // Rate / score / stats
+    if (/rate|percent|score|statistic|how.*(am i|doing)|progress/.test(q)) {
+      return `Your completion rate ${rangeLabel} is ${rate}% (${completed}/${total} tasks). ${rate >= 70 ? '🔥 That\'s excellent!' : rate >= 50 ? '👍 Good progress!' : '💪 Keep pushing — you\'ve got this!'}`;
+    }
+
+    // Category
+    if (/categor|work|personal|study|health/.test(q)) {
+      if (!cats) return `No category data available yet.`;
+      return `Category breakdown: ${cats}. ${bestDay ? `Your best day overall is ${bestDay}.` : ''}`;
+    }
+
+    // Describe a specific task
+    const taskMentioned = [...doneTasks, ...openTasks].find(t =>
+      t.title.toLowerCase().includes(q.replace(/[^a-z0-9 ]/g, ''))
+    );
+    if (taskMentioned) {
+      const desc = taskMentioned.description?.trim();
+      return `"${taskMentioned.title}": ${desc || 'No description added.'} Status: ${taskMentioned.status}, Priority: ${taskMentioned.priority}${taskMentioned.due_date ? `, Due: ${taskMentioned.due_date}` : ''}.`;
     }
 
     // Generic fallback
-    const ov = statsData?.overview;
-    return `Based on your task data: ${ov?.recent_total || 0} total tasks, ${ov?.recent_completed || 0} completed, ${ov?.overdue || 0} overdue. Ask me something specific like "what's overdue?", "what should I focus on?", or "show my pending tasks."`;
+    return `${name}, you have ${total} tasks ${rangeLabel} with a ${rate}% completion rate. Try asking: "What's overdue?", "What should I focus on?", "Show high priority tasks", or "How am I doing?"`;
   },
 };

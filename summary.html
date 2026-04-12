@@ -263,8 +263,14 @@ async function generateSummary() {
     status.textContent = 'Summary ready';
     Toast.success('AI summary generated!');
   } catch(e) {
-    output.innerHTML = `<span style="color:var(--red);font-size:13px">${e.message || 'Generation failed. Please try again.'}</span>`;
-    status.textContent = 'Error — try again';
+    const errMsg = e.message || '';
+    if (errMsg.includes('503') || errMsg.includes('retry')) {
+      output.innerHTML = `<span style="color:var(--yellow);font-size:13px">⏳ AI model is warming up — please wait 20 seconds and try again.</span>`;
+      status.textContent = 'Model loading...';
+    } else {
+      output.innerHTML = `<span style="color:var(--red);font-size:13px">${errMsg || 'Generation failed. Please try again.'}</span>`;
+      status.textContent = 'Error — try again';
+    }
   } finally {
     btn.disabled = false;
     btn.innerHTML = `${Icons.sparkles(16)} Generate Summary`;
@@ -431,11 +437,14 @@ async function sendChat() {
     hideTyping();
     appendMsg('ai', reply);
     chatHistory.push({ role: 'assistant', content: reply });
-    // Keep history bounded
     if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
   } catch(e) {
     hideTyping();
-    appendMsg('ai', 'Sorry, I had trouble processing that. Try asking again!');
+    // Show a friendly error but still try offline fallback
+    const userName = document.querySelector('[data-user-name]')?.textContent?.trim() || '';
+    const allTodos = statsData?.allTodosForAI || statsData?.recentTodos || [];
+    const ctx = AI.buildContext(statsData, allTodos, userName, statsData?.range || currentRange);
+    appendMsg('ai', AI._fallbackChat(msg, ctx));
   }
 
   btn.disabled = false;
