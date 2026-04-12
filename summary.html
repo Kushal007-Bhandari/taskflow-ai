@@ -1,302 +1,265 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — AI Summary</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
-<div class="app-layout">
 
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-brand">
-        <div class="sidebar-logo">✅</div>
-        <div class="sidebar-brand-name">Task<span>Flow</span></div>
+<header class="app-header">
+  <button class="btn btn-ghost btn-icon" onclick="Drawer.open()"><span id="menu-icon"></span></button>
+  <div class="header-title">AI Summary</div>
+  <div style="width:40px"></div>
+</header>
+
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span id="nav-home"></span>Tasks</a>
+  <a href="analytics.html" class="nav-item"><span id="nav-chart"></span>Analytics</a>
+  <button class="nav-fab" onclick="window.location.href='dashboard.html'"><span id="nav-plus"></span></button>
+  <a href="summary.html" class="nav-item active"><span id="nav-brain"></span>AI</a>
+  <button class="nav-item" onclick="Drawer.open()"><span id="nav-list"></span>More</button>
+</nav>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="Drawer.close()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-logo">
+      <div class="drawer-logo-icon"><span id="drawer-check"></span></div>
+      <div class="drawer-logo-name">Task<span>Flow</span></div>
+    </div>
+    <button class="btn btn-ghost btn-icon btn-sm" onclick="Drawer.close()"><span id="drawer-close"></span></button>
+  </div>
+  <nav class="drawer-nav">
+    <div class="drawer-section-label">Navigation</div>
+    <a href="dashboard.html" class="drawer-nav-item"><span id="d-home"></span> Dashboard</a>
+    <a href="analytics.html" class="drawer-nav-item"><span id="d-chart"></span> Analytics</a>
+    <a href="summary.html"   class="drawer-nav-item active"><span id="d-brain"></span> AI Summary</a>
+  </nav>
+  <div class="drawer-footer">
+    <div class="drawer-user" onclick="Auth.logout()">
+      <div class="avatar" data-user-avatar style="width:36px;height:36px;font-size:14px">?</div>
+      <div><div class="user-name" data-user-name>Loading...</div><div class="logout-hint">Tap to sign out</div></div>
+      <span style="margin-left:auto;color:var(--text-3)" id="d-logout"></span>
+    </div>
+  </div>
+</aside>
+
+<main class="app-main">
+
+  <!-- AI Hero Card -->
+  <div class="ai-hero">
+    <div class="ai-hero-head">
+      <div class="ai-icon-wrap"><span id="ai-icon"></span></div>
+      <div>
+        <div class="ai-hero-title">Productivity Summary</div>
+        <div class="ai-hero-sub">Qwen2.5 · Runs entirely on your device</div>
       </div>
     </div>
-    <nav class="sidebar-nav">
-      <div class="sidebar-section-label">Menu</div>
-      <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Dashboard</a>
-      <a href="analytics.html" class="nav-item"><span class="nav-icon">📊</span> Analytics</a>
-      <a href="summary.html"   class="nav-item active"><span class="nav-icon">🤖</span> AI Summary</a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-card" onclick="Auth.logout()">
-        <div class="user-avatar" id="sidebar-user-avatar">?</div>
-        <div class="user-info">
-          <div class="user-name"  id="sidebar-user-name">Loading...</div>
-          <div class="user-email" id="sidebar-user-email">Sign out →</div>
-        </div>
-      </div>
-    </div>
-  </aside>
 
-  <main class="main-content">
-    <div class="topbar">
-      <div class="topbar-title">AI Summary</div>
-      <span class="badge badge-orange">🤖 On-Device AI</span>
+    <!-- Range -->
+    <div class="range-tabs" style="margin-bottom:16px">
+      <button class="range-tab" data-days="7"   onclick="setRange(7)">7 Days</button>
+      <button class="range-tab active" data-days="30" onclick="setRange(30)">30 Days</button>
+      <button class="range-tab" data-days="90"  onclick="setRange(90)">3 Months</button>
+      <button class="range-tab" data-days="180" onclick="setRange(180)">6 Months</button>
+      <button class="range-tab" data-days="365" onclick="setRange(365)">1 Year</button>
     </div>
 
-    <div class="page">
-
-      <!-- AI Card -->
-      <div class="ai-card" style="margin-bottom:24px">
-        <div class="ai-header">
-          <div class="ai-icon">🤖</div>
-          <div>
-            <div class="ai-title">Your Productivity Summary</div>
-            <div class="ai-sub">Powered by Transformers.js — runs entirely in your browser, no data sent externally</div>
-          </div>
-        </div>
-
-        <!-- Range selector -->
-        <div style="margin-bottom:20px">
-          <div class="text-sm text-secondary" style="margin-bottom:10px">Summarize the last:</div>
-          <div class="ai-range-selector">
-            <button class="filter-chip" onclick="setRange(7)">7 Days</button>
-            <button class="filter-chip active" onclick="setRange(30)">30 Days</button>
-            <button class="filter-chip" onclick="setRange(90)">3 Months</button>
-            <button class="filter-chip" onclick="setRange(180)">6 Months</button>
-            <button class="filter-chip" onclick="setRange(365)">1 Year</button>
-          </div>
-        </div>
-
-        <!-- Mini stats -->
-        <div class="ai-stats-row" id="ai-stats">
-          <div class="ai-stat-mini">
-            <span class="ai-stat-mini-value" id="stat-created">—</span>
-            <span class="ai-stat-mini-label">Tasks Created</span>
-          </div>
-          <div class="ai-stat-mini">
-            <span class="ai-stat-mini-value" id="stat-completed">—</span>
-            <span class="ai-stat-mini-label">Completed</span>
-          </div>
-          <div class="ai-stat-mini">
-            <span class="ai-stat-mini-value" id="stat-rate">—</span>
-            <span class="ai-stat-mini-label">Success Rate</span>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- Generate button -->
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-          <button class="btn btn-primary" id="generate-btn" onclick="generateSummary()">
-            ✨ Generate AI Summary
-          </button>
-          <span class="text-sm text-muted" id="model-status">Model loads on first use (~30s)</span>
-        </div>
-
-        <!-- Output -->
-        <div class="ai-summary-output" id="summary-output">
-          <span style="color:var(--text-muted)">
-            Click "Generate AI Summary" to analyze your productivity with on-device AI.
-            The model runs entirely in your browser — no data ever leaves your device.
-          </span>
-        </div>
+    <!-- Mini stats -->
+    <div class="ai-mini-stats">
+      <div class="ai-mini-stat">
+        <span class="ai-mini-value" id="s-created">—</span>
+        <span class="ai-mini-label">Created</span>
       </div>
-
-      <!-- Monthly Breakdown Table -->
-      <div class="chart-card">
-        <div class="chart-card-title">Monthly History</div>
-        <div class="chart-card-sub">Your performance across the last 12 months</div>
-        <div id="monthly-table"></div>
+      <div class="ai-mini-stat">
+        <span class="ai-mini-value" id="s-completed">—</span>
+        <span class="ai-mini-label">Completed</span>
       </div>
-
-      <!-- Recent Completed -->
-      <div class="chart-card" style="margin-top:20px">
-        <div class="chart-card-title" id="recent-title">Recent Completions</div>
-        <div class="chart-card-sub">Tasks you finished in this period</div>
-        <div id="recent-todos"></div>
+      <div class="ai-mini-stat">
+        <span class="ai-mini-value" id="s-rate">—</span>
+        <span class="ai-mini-label">Rate</span>
       </div>
-
     </div>
-  </main>
-</div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-top:4px">
+      <button class="btn btn-primary" id="gen-btn" onclick="generateSummary()">
+        <span id="gen-icon"></span> Generate Summary
+      </button>
+      <span class="text-xs text-3" id="model-status">Model loads on first use</span>
+    </div>
+
+    <!-- Output -->
+    <div class="ai-output" id="ai-output">
+      <span class="text-2 text-sm">Click "Generate Summary" to get your AI-powered productivity insights. The model runs entirely on your device — your data never leaves.</span>
+    </div>
+  </div>
+
+  <!-- Monthly History -->
+  <div class="card">
+    <div class="card-title">Monthly History</div>
+    <div class="card-sub">Performance over the last 12 months</div>
+    <div class="overflow-x" id="monthly-table"></div>
+  </div>
+
+  <!-- Recent completions -->
+  <div class="card">
+    <div class="card-title" id="recent-title">Recent Completions</div>
+    <div class="card-sub">Tasks you finished in this period</div>
+    <div id="recent-list"></div>
+  </div>
+
+</main>
 
 <script src="js/config.js"></script>
+<script src="js/icons.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/ai.js"></script>
-
 <script>
-  let currentRange = 30;
-  let statsData = null;
+let currentRange = 30;
+let statsData = null;
 
-  async function init() {
-    const user = await Auth.requireAuth();
-    if (!user) return;
-    populateSidebarUser();
-    await loadData();
-  }
+async function init() {
+  injectIcons();
+  const user = await Auth.requireAuth();
+  if (!user) return;
+  populateSidebarUser();
+  await loadData();
+}
 
-  async function loadData() {
-    try {
-      statsData = await TodoAPI.getStats(currentRange);
-      renderMiniStats(statsData.overview);
-      renderMonthlyTable(statsData.monthlySummary);
-      renderRecentTodos(statsData.recentTodos);
-    } catch (err) {
-      Toast.error('Failed to load data');
-    }
-  }
+function injectIcons() {
+  document.getElementById('menu-icon').innerHTML    = Icons.menu(20);
+  document.getElementById('nav-home').innerHTML     = Icons.home(22);
+  document.getElementById('nav-chart').innerHTML    = Icons.chart(22);
+  document.getElementById('nav-plus').innerHTML     = Icons.plus(24);
+  document.getElementById('nav-brain').innerHTML    = Icons.brain(22);
+  document.getElementById('nav-list').innerHTML     = Icons.list(22);
+  document.getElementById('drawer-check').innerHTML = Icons.check(18);
+  document.getElementById('drawer-close').innerHTML = Icons.x(18);
+  document.getElementById('d-home').innerHTML       = Icons.home(18);
+  document.getElementById('d-chart').innerHTML      = Icons.chart(18);
+  document.getElementById('d-brain').innerHTML      = Icons.brain(18);
+  document.getElementById('d-logout').innerHTML     = Icons.logout(16);
+  document.getElementById('ai-icon').innerHTML      = Icons.sparkles(26);
+  document.getElementById('gen-icon').innerHTML     = Icons.sparkles(16);
+}
 
-  function setRange(days) {
-    currentRange = days;
-    document.querySelectorAll('.ai-range-selector .filter-chip').forEach(c => {
-      c.classList.toggle('active', c.textContent.trim().includes(
-        days === 7 ? '7' : days === 30 ? '30' : days === 90 ? '3' : days === 180 ? '6' : '1 Y'
-      ));
-    });
-    // Reset summary output
-    document.getElementById('summary-output').innerHTML =
-      `<span style="color:var(--text-muted)">Click "Generate AI Summary" for this period.</span>`;
-    loadData();
-  }
-
-  function renderMiniStats(o) {
+async function loadData() {
+  try {
+    statsData = await TodoAPI.getStats(currentRange);
+    const o = statsData.overview;
+    document.getElementById('s-created').textContent   = o.recent_total || 0;
+    document.getElementById('s-completed').textContent = o.recent_completed || 0;
     const rate = o.recent_total > 0 ? Math.round(o.recent_completed / o.recent_total * 100) : 0;
-    document.getElementById('stat-created').textContent   = o.recent_total || 0;
-    document.getElementById('stat-completed').textContent = o.recent_completed || 0;
-    document.getElementById('stat-rate').textContent      = rate + '%';
-  }
+    document.getElementById('s-rate').textContent = rate + '%';
+    renderMonthly(statsData.monthlySummary);
+    renderRecent(statsData.recentTodos);
+  } catch(e) { Toast.error('Failed to load data'); }
+}
 
-  async function generateSummary() {
-    if (!statsData) return;
+function setRange(days) {
+  currentRange = days;
+  document.querySelectorAll('.range-tab').forEach(t =>
+    t.classList.toggle('active', parseInt(t.dataset.days) === days));
+  document.getElementById('ai-output').innerHTML =
+    `<span class="text-2 text-sm">Click "Generate Summary" for this period.</span>`;
+  loadData();
+}
 
-    const btn = document.getElementById('generate-btn');
-    const output = document.getElementById('summary-output');
-    const status = document.getElementById('model-status');
+async function generateSummary() {
+  if (!statsData) return;
+  const btn    = document.getElementById('gen-btn');
+  const output = document.getElementById('ai-output');
+  const status = document.getElementById('model-status');
 
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Generating...';
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Generating...`;
 
+  output.innerHTML = `<div class="ai-loading">
+    <div class="dot-pulse"><span></span><span></span><span></span></div>
+    <span id="ai-progress">Initializing AI model...</span>
+  </div>`;
+
+  try {
+    const summary = await AI.summarize(
+      statsData.recentTodos,
+      {
+        total:     parseInt(statsData.overview.recent_total)     || 0,
+        completed: parseInt(statsData.overview.recent_completed) || 0,
+        overdue:   parseInt(statsData.overview.overdue)          || 0,
+      },
+      currentRange,
+      (msg) => {
+        const el = document.getElementById('ai-progress');
+        if (el) el.textContent = msg;
+        status.textContent = msg;
+      }
+    );
+
+    output.classList.add('has-content');
     output.innerHTML = `
-      <div style="display:flex;align-items:center;gap:14px;color:var(--text-secondary)">
-        <div class="ai-loading-dots">
-          <span></span><span></span><span></span>
-        </div>
-        <span id="ai-progress">Initializing AI model...</span>
+      <p style="line-height:1.8">${summary}</p>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-3)">
+        ${Icons.sparkles(12)} Generated by Qwen2.5 on your device &nbsp;·&nbsp; ${new Date().toLocaleString()}
       </div>`;
 
-    try {
-      const summary = await AI.summarize(
-        statsData.recentTodos,
-        {
-          total:     parseInt(statsData.overview.recent_total) || 0,
-          completed: parseInt(statsData.overview.recent_completed) || 0,
-          overdue:   parseInt(statsData.overview.overdue) || 0,
-        },
-        currentRange,
-        (msg) => {
-          const el = document.getElementById('ai-progress');
-          if (el) el.textContent = msg;
-          status.textContent = msg;
-        }
-      );
-
-      output.innerHTML = `
-        <p style="color:var(--text-primary);line-height:1.8;font-size:15px">${summary}</p>
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);
-          display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted)">
-          🤖 Generated by Transformers.js on your device
-          &nbsp;·&nbsp; ${new Date().toLocaleString()}
-        </div>`;
-
-      status.textContent = '✅ Summary generated!';
-      Toast.success('AI summary ready!');
-    } catch (err) {
-      output.innerHTML = `<span style="color:var(--red)">⚠️ ${err.message || 'Generation failed. Please try again.'}</span>`;
-      status.textContent = 'Error — try again';
-      Toast.error('Failed to generate summary');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '✨ Generate AI Summary';
-    }
+    status.textContent = 'Summary ready';
+    Toast.success('AI summary generated!');
+  } catch(e) {
+    output.innerHTML = `<span style="color:var(--red);font-size:13px">${e.message || 'Generation failed. Please try again.'}</span>`;
+    status.textContent = 'Error — try again';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `${Icons.sparkles(16)} Generate Summary`;
   }
+}
 
-  function renderMonthlyTable(months) {
-    const container = document.getElementById('monthly-table');
-    if (!months?.length) {
-      container.innerHTML = '<p class="text-secondary text-sm" style="padding:16px">No monthly data yet. Keep using TaskFlow!</p>';
-      return;
-    }
-
-    container.innerHTML = `
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:14px">
-          <thead>
-            <tr style="border-bottom:1px solid var(--border)">
-              <th style="text-align:left;padding:10px;color:var(--text-secondary);font-weight:600">Month</th>
-              <th style="text-align:right;padding:10px;color:var(--text-secondary);font-weight:600">Created</th>
-              <th style="text-align:right;padding:10px;color:var(--text-secondary);font-weight:600">Completed</th>
-              <th style="text-align:right;padding:10px;color:var(--text-secondary);font-weight:600">High Priority</th>
-              <th style="padding:10px;color:var(--text-secondary);font-weight:600;min-width:140px">Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${months.map(m => {
-              const rate = m.completion_rate || 0;
-              const rateColor = rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--yellow)' : 'var(--red)';
-              return `
-                <tr style="border-bottom:1px solid var(--border-subtle)">
-                  <td style="padding:12px;font-weight:500">${m.month}</td>
-                  <td style="text-align:right;padding:12px;font-family:var(--font-mono)">${m.created}</td>
-                  <td style="text-align:right;padding:12px;font-family:var(--font-mono);color:var(--green)">${m.completed}</td>
-                  <td style="text-align:right;padding:12px;font-family:var(--font-mono);color:var(--red)">${m.high_priority}</td>
-                  <td style="padding:12px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                      <div class="progress-bar" style="flex:1">
-                        <div class="progress-fill" style="width:${rate}%;background:${rateColor}"></div>
-                      </div>
-                      <span style="font-family:var(--font-mono);font-size:12px;min-width:36px;text-align:right;color:${rateColor}">${rate}%</span>
-                    </div>
-                  </td>
-                </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
-
-  function renderRecentTodos(todos) {
-    const container = document.getElementById('recent-todos');
-    document.getElementById('recent-title').textContent =
-      `Recent Completions (Last ${currentRange} days)`;
-
-    if (!todos?.length) {
-      container.innerHTML = '<p class="text-secondary text-sm" style="padding:16px">No completed tasks in this period.</p>';
-      return;
-    }
-
-    container.innerHTML = todos.slice(0, 20).map(t => `
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-subtle)">
-        <span style="color:var(--green);font-size:16px">✅</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            ${escapeHtml(t.title)}
+function renderMonthly(months) {
+  const el = document.getElementById('monthly-table');
+  if (!months?.length) { el.innerHTML = '<p class="text-sm text-2" style="padding:12px">No monthly data yet.</p>'; return; }
+  el.innerHTML = `<table class="data-table">
+    <thead><tr>
+      <th>Month</th><th style="text-align:right">Created</th>
+      <th style="text-align:right">Done</th><th>Rate</th>
+    </tr></thead>
+    <tbody>${months.map(m => {
+      const r = m.completion_rate || 0;
+      const col = r >= 70 ? 'var(--green)' : r >= 40 ? 'var(--yellow)' : 'var(--red)';
+      return `<tr>
+        <td style="font-weight:600;font-size:13px">${m.month}</td>
+        <td style="text-align:right;font-family:var(--font-mono);font-size:12px">${m.created}</td>
+        <td style="text-align:right;font-family:var(--font-mono);font-size:12px;color:var(--green)">${m.completed}</td>
+        <td style="min-width:110px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="progress-track" style="flex:1"><div class="progress-fill" style="width:${r}%;background:${col}"></div></div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:${col};min-width:30px">${r}%</span>
           </div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
-            ${t.category || 'General'} · ${t.priority} priority
-          </div>
-        </div>
-        <span style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);flex-shrink:0">
-          ${DateUtils.formatShort(t.completed_at)}
-        </span>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderRecent(todos) {
+  document.getElementById('recent-title').textContent = `Recent Completions (Last ${currentRange} days)`;
+  const el = document.getElementById('recent-list');
+  if (!todos?.length) { el.innerHTML = '<p class="text-sm text-2" style="padding:12px">No completed tasks in this period.</p>'; return; }
+  el.innerHTML = todos.slice(0, 20).map(t => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--green);flex-shrink:0">${Icons.circle_check(18)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title)}</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:2px">${t.category||'General'} · ${t.priority}</div>
       </div>
-    `).join('');
-  }
+      <span style="font-size:11px;color:var(--text-3);font-family:var(--font-mono);flex-shrink:0">${DateUtils.formatShort(t.completed_at)}</span>
+    </div>`).join('');
+}
 
-  function escapeHtml(str) {
-    const d = document.createElement('div');
-    d.textContent = str || '';
-    return d.innerHTML;
-  }
-
-  init();
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+init();
 </script>
 </body>
 </html>

@@ -1,208 +1,169 @@
-// js/ui.js
-// Shared UI utilities: toast, modal, date helpers, etc.
+// js/ui.js — Shared UI utilities
 
-// ── Toast Notifications ──────────────────────────────────────
-
+// ── Toast ──────────────────────────────────────────────────
 const Toast = {
-  container: null,
-
-  init() {
-    if (!this.container) {
-      this.container = document.createElement('div');
-      this.container.className = 'toast-container';
-      document.body.appendChild(this.container);
+  _wrap: null,
+  _get() {
+    if (!this._wrap) {
+      this._wrap = document.createElement('div');
+      this._wrap.className = 'toast-wrap';
+      document.body.appendChild(this._wrap);
     }
+    return this._wrap;
   },
-
-  show(message, type = 'info', duration = 3500) {
-    this.init();
-    const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${icons[type] || '•'}</span><span>${message}</span>`;
-    this.container.appendChild(toast);
+  show(msg, type = 'info', ms = 3200) {
+    const iconMap = {
+      success: Icons.circle_check(16),
+      error:   Icons.alert(16),
+      info:    Icons.alert(16),
+    };
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span class="toast-icon">${iconMap[type] || ''}</span><span>${msg}</span>`;
+    this._get().appendChild(el);
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateX(20px)';
-      toast.style.transition = '0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
+      el.style.transition = '0.3s ease';
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(8px)';
+      setTimeout(() => el.remove(), 300);
+    }, ms);
   },
-
-  success: (msg) => Toast.show(msg, 'success'),
-  error:   (msg) => Toast.show(msg, 'error'),
-  info:    (msg) => Toast.show(msg, 'info'),
+  success: (m) => Toast.show(m, 'success'),
+  error:   (m) => Toast.show(m, 'error'),
+  info:    (m) => Toast.show(m, 'info'),
 };
 
-// ── Modal ─────────────────────────────────────────────────────
-
+// ── Modal ──────────────────────────────────────────────────
 const Modal = {
-  open(id) {
-    const el = document.getElementById(id);
-    if (el) el.classList.add('open');
-  },
-
-  close(id) {
-    const el = document.getElementById(id);
-    if (el) el.classList.remove('open');
-  },
-
-  closeAll() {
-    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
-  },
+  open(id)  { document.getElementById(id)?.classList.add('open'); },
+  close(id) { document.getElementById(id)?.classList.remove('open'); },
+  closeAll() { document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); },
 };
 
-// Close modal on overlay click
-document.addEventListener('click', (e) => {
-  if (e.target.classList.contains('modal-overlay')) {
-    e.target.classList.remove('open');
-  }
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) Modal.closeAll();
 });
 
-// ── Date Helpers ──────────────────────────────────────────────
+// ── Drawer ──────────────────────────────────────────────────
+const Drawer = {
+  open() {
+    document.getElementById('drawer')?.classList.add('open');
+    document.getElementById('drawer-overlay')?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  },
+  close() {
+    document.getElementById('drawer')?.classList.remove('open');
+    document.getElementById('drawer-overlay')?.classList.remove('open');
+    document.body.style.overflow = '';
+  },
+};
 
+// ── Date Utilities ──────────────────────────────────────────
 const DateUtils = {
   format(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   },
-
   formatShort(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const today = new Date();
-    const dStr = d.toLocaleDateString('en-CA');
-    const todayStr = today.toLocaleDateString('en-CA');
-    const tomorrowStr = new Date(today.getTime() + 86400000).toLocaleDateString('en-CA');
-    const yesterdayStr = new Date(today.getTime() - 86400000).toLocaleDateString('en-CA');
-    if (dStr === todayStr)     return 'Today';
-    if (dStr === tomorrowStr)  return 'Tomorrow';
-    if (dStr === yesterdayStr) return 'Yesterday';
-    const diffDays = Math.round((new Date(dStr) - new Date(todayStr)) / 86400000);
-    if (diffDays > 1 && diffDays < 7)  return `In ${diffDays} days`;
-    if (diffDays < 0 && diffDays > -7) return `${Math.abs(diffDays)} days ago`;
+    const dStr     = new Date(dateStr).toLocaleDateString('en-CA');
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const tStr     = new Date(Date.now() + 86400000).toLocaleDateString('en-CA');
+    const yStr     = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
+    if (dStr === todayStr) return 'Today';
+    if (dStr === tStr)     return 'Tomorrow';
+    if (dStr === yStr)     return 'Yesterday';
+    const diff = Math.round((new Date(dStr) - new Date(todayStr)) / 86400000);
+    if (diff > 1 && diff < 7)  return `In ${diff} days`;
+    if (diff < 0 && diff > -7) return `${Math.abs(diff)}d ago`;
     return this.format(dateStr);
   },
-
   isOverdue(dateStr) {
     if (!dateStr) return false;
-    const dStr = new Date(dateStr).toLocaleDateString('en-CA');
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    return dStr < todayStr;
+    return new Date(dateStr).toLocaleDateString('en-CA') < new Date().toLocaleDateString('en-CA');
   },
-
   isSoon(dateStr) {
     if (!dateStr) return false;
-    const dStr = new Date(dateStr).toLocaleDateString('en-CA');
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    const in3Str = new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-CA');
-    return dStr >= todayStr && dStr <= in3Str;
+    const d = new Date(dateStr).toLocaleDateString('en-CA');
+    const t = new Date().toLocaleDateString('en-CA');
+    const t3 = new Date(Date.now() + 3 * 86400000).toLocaleDateString('en-CA');
+    return d >= t && d <= t3;
   },
-
-  toInputFormat(dateStr) {
+  toInput(dateStr) {
     if (!dateStr) return '';
     return new Date(dateStr).toISOString().split('T')[0];
   },
-
-  // Generate array of dates for last N days
   lastNDays(n) {
-    const dates = [];
+    const days = [];
     for (let i = n - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().split('T')[0]);
+      days.push(d.toISOString().split('T')[0]);
     }
-    return dates;
+    return days;
   },
 };
 
-// ── User Avatar ───────────────────────────────────────────────
-
-function renderAvatar(user, size = 34) {
+// ── Avatar ──────────────────────────────────────────────────
+function renderAvatar(user, size = 36) {
   const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  return `<div class="user-avatar" style="width:${size}px;height:${size}px;background:${user.avatar_color};font-size:${size * 0.38}px">${initials}</div>`;
+  return `<div class="avatar" style="width:${size}px;height:${size}px;background:${user.avatar_color};font-size:${Math.round(size*0.38)}px">${initials}</div>`;
 }
 
-// ── Priority Badge ────────────────────────────────────────────
-
-function priorityBadge(priority) {
-  const labels = { high: '🔴 High', medium: '🟡 Medium', low: '🟢 Low' };
-  return `<span class="todo-tag priority-${priority}">${labels[priority] || priority}</span>`;
-}
-
-// ── Status Badge ──────────────────────────────────────────────
-
-function statusBadge(status) {
-  const map = {
-    pending:     { label: 'Pending',     class: 'badge-gray'   },
-    in_progress: { label: 'In Progress', class: 'badge-blue'   },
-    completed:   { label: 'Completed',   class: 'badge-green'  },
-    cancelled:   { label: 'Cancelled',   class: 'badge-red'    },
-  };
-  const s = map[status] || map.pending;
-  return `<span class="badge ${s.class}">${s.label}</span>`;
-}
-
-// ── Populate Sidebar User ─────────────────────────────────────
-
+// ── Populate drawer user ────────────────────────────────────
 function populateSidebarUser() {
   const user = Auth.getUser();
   if (!user) return;
-
-  const nameEl  = document.getElementById('sidebar-user-name');
-  const emailEl = document.getElementById('sidebar-user-email');
-  const avatarEl = document.getElementById('sidebar-user-avatar');
-
-  if (nameEl)  nameEl.textContent  = user.name;
-  if (emailEl) emailEl.textContent = user.email;
-  if (avatarEl) {
-    const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-    avatarEl.textContent = initials;
-    avatarEl.style.background = user.avatar_color || '#f0883e';
-  }
+  const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const nameEls  = document.querySelectorAll('[data-user-name]');
+  const emailEls = document.querySelectorAll('[data-user-email]');
+  const avatarEls= document.querySelectorAll('[data-user-avatar]');
+  nameEls.forEach(el => el.textContent = user.name);
+  emailEls.forEach(el => el.textContent = user.email);
+  avatarEls.forEach(el => {
+    el.textContent = initials;
+    el.style.background = user.avatar_color || '#6366f1';
+  });
 }
 
-// ── Loading State ─────────────────────────────────────────────
-
+// ── Loading state ───────────────────────────────────────────
 function setLoading(btn, loading, label = '') {
   if (loading) {
-    btn.dataset.originalText = btn.innerHTML;
-    btn.innerHTML = `<span class="spinner"></span> ${label || 'Loading...'}`;
+    btn.dataset.orig = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner"></span>${label ? ' ' + label : ''}`;
     btn.disabled = true;
   } else {
-    btn.innerHTML = btn.dataset.originalText || label;
+    btn.innerHTML = btn.dataset.orig || label;
     btn.disabled = false;
   }
 }
 
-// ── Debounce ──────────────────────────────────────────────────
-
-function debounce(fn, delay = 300) {
-  let timeout;
-  return (...args) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => fn(...args), delay);
-  };
+// ── Debounce ────────────────────────────────────────────────
+function debounce(fn, ms = 300) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
-// ── Confirm Dialog ────────────────────────────────────────────
-
-function confirm(message, onConfirm) {
-  // Simple confirm using native dialog (can be replaced with custom modal)
-  if (window.confirm(message)) onConfirm();
-}
-
-// ── Number Format ─────────────────────────────────────────────
-
-function numFormat(n) {
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-  return n;
-}
-
-// ── Completion Rate ───────────────────────────────────────────
-
-function completionRate(completed, total) {
+// ── Completion rate ─────────────────────────────────────────
+function completionRate(done, total) {
   if (!total) return 0;
-  return Math.round((completed / total) * 100);
+  return Math.round((done / total) * 100);
+}
+
+// ── Escape HTML ─────────────────────────────────────────────
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+// ── Priority tag ────────────────────────────────────────────
+function priorityTag(p) {
+  const map = {
+    high:   { cls: 'tag-high',   label: 'High' },
+    medium: { cls: 'tag-medium', label: 'Medium' },
+    low:    { cls: 'tag-low',    label: 'Low' },
+  };
+  const m = map[p] || map.medium;
+  return `<span class="tag ${m.cls}">${Icons.flag(11)} ${m.label}</span>`;
 }

@@ -1,212 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — Sign In</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <style>
-    .tab-btns { display: flex; gap: 0; margin-bottom: 28px; border-bottom: 2px solid var(--border); }
-    .tab-btn {
-      padding: 10px 24px; font-size: 15px; font-weight: 600;
-      background: none; border: none; color: var(--text-muted);
-      cursor: pointer; position: relative; transition: color var(--transition);
-    }
-    .tab-btn.active { color: var(--accent); }
-    .tab-btn.active::after {
-      content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
-      height: 2px; background: var(--accent); border-radius: 2px;
-    }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-  </style>
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
-  <div class="auth-page">
-    <!-- Left Panel -->
-    <div class="auth-left">
-      <div class="auth-brand">
-        <div class="auth-brand-logo">✅</div>
-        <div class="auth-brand-name">Task<span>Flow</span></div>
+<div class="auth-page">
+  <div class="auth-box">
+
+    <div class="auth-logo">
+      <div class="auth-logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
-
-      <h1 class="auth-tagline">
-        Your tasks.<br>
-        <span>AI-powered</span><br>
-        insights.
-      </h1>
-
-      <p class="auth-sub">
-        Track everything you do, then let on-device AI summarize your progress — weekly, monthly, or yearly. No cloud AI. Your data stays yours.
-      </p>
-
-      <div class="auth-features">
-        <div class="auth-feature">
-          <div class="auth-feature-icon">🤖</div>
-          <span>On-device AI summarization — runs in your browser, no API costs</span>
-        </div>
-        <div class="auth-feature">
-          <div class="auth-feature-icon">📊</div>
-          <span>Beautiful analytics — track streaks, categories, and priorities</span>
-        </div>
-        <div class="auth-feature">
-          <div class="auth-feature-icon">⚡</div>
-          <span>Smart productivity scoring based on your completion patterns</span>
-        </div>
-        <div class="auth-feature">
-          <div class="auth-feature-icon">🔒</div>
-          <span>Secure, personal — each user sees only their own data</span>
-        </div>
-      </div>
+      <div class="auth-logo-name">Task<span>Flow</span></div>
     </div>
 
-    <!-- Right Panel -->
-    <div class="auth-right">
-      <div class="auth-form-container">
-        <!-- Tabs -->
-        <div class="tab-btns">
-          <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
-          <button class="tab-btn" onclick="switchTab('register')">Create Account</button>
-        </div>
-
-        <!-- Login Form -->
-        <div id="tab-login" class="tab-panel active">
-          <h2 class="auth-form-title">Welcome back</h2>
-          <p class="auth-form-sub">Don't have an account? <a href="#" onclick="switchTab('register')">Sign up free</a></p>
-
-          <form id="login-form" onsubmit="handleLogin(event)">
-            <div class="form-group">
-              <label class="form-label">Email</label>
-              <div class="form-input-icon-wrap">
-                <span class="form-input-icon">📧</span>
-                <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required autocomplete="email" />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <div class="form-input-icon-wrap">
-                <span class="form-input-icon">🔑</span>
-                <input type="password" id="login-password" class="form-input" placeholder="Your password" required autocomplete="current-password" />
-              </div>
-            </div>
-
-            <div id="login-error" class="form-error hidden"></div>
-
-            <button type="submit" id="login-btn" class="btn btn-primary btn-full btn-lg" style="margin-top:8px">
-              Sign In →
-            </button>
-          </form>
-        </div>
-
-        <!-- Register Form -->
-        <div id="tab-register" class="tab-panel">
-          <h2 class="auth-form-title">Create account</h2>
-          <p class="auth-form-sub">Already have one? <a href="#" onclick="switchTab('login')">Sign in</a></p>
-
-          <form id="register-form" onsubmit="handleRegister(event)">
-            <div class="form-group">
-              <label class="form-label">Full Name</label>
-              <div class="form-input-icon-wrap">
-                <span class="form-input-icon">👤</span>
-                <input type="text" id="reg-name" class="form-input" placeholder="Your full name" required autocomplete="name" />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Email</label>
-              <div class="form-input-icon-wrap">
-                <span class="form-input-icon">📧</span>
-                <input type="email" id="reg-email" class="form-input" placeholder="you@example.com" required autocomplete="email" />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <div class="form-input-icon-wrap">
-                <span class="form-input-icon">🔑</span>
-                <input type="password" id="reg-password" class="form-input" placeholder="Min. 6 characters" required autocomplete="new-password" minlength="6" />
-              </div>
-            </div>
-
-            <div id="reg-error" class="form-error hidden"></div>
-
-            <button type="submit" id="reg-btn" class="btn btn-primary btn-full btn-lg" style="margin-top:8px">
-              Create Account →
-            </button>
-          </form>
-        </div>
-
-        <p class="text-xs text-muted" style="margin-top:24px;text-align:center">
-          BCA Project II — TaskFlow AI &nbsp;|&nbsp; Built with Neon + Netlify
-        </p>
-      </div>
+    <!-- Tabs -->
+    <div class="auth-tabs" id="tabs">
+      <div class="auth-tab active" onclick="switchTab('login')">Sign In</div>
+      <div class="auth-tab" onclick="switchTab('register')">Create Account</div>
     </div>
+
+    <!-- Login -->
+    <div id="tab-login">
+      <h1 class="auth-heading">Welcome back</h1>
+      <p class="auth-sub">No account? <a href="#" onclick="switchTab('register')">Sign up free</a></p>
+
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div class="input-wrap">
+            <span class="input-icon"></span>
+            <input id="l-email" type="email" class="form-input" placeholder="you@example.com" required autocomplete="email"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-wrap">
+            <span class="input-icon"></span>
+            <input id="l-pass" type="password" class="form-input" placeholder="Your password" required autocomplete="current-password"/>
+          </div>
+        </div>
+        <div id="l-err" class="form-error"></div>
+        <button type="submit" id="l-btn" class="btn btn-primary btn-full btn-lg" style="margin-top:8px">
+          Sign In
+        </button>
+      </form>
+    </div>
+
+    <!-- Register -->
+    <div id="tab-register" class="hidden">
+      <h1 class="auth-heading">Create account</h1>
+      <p class="auth-sub">Already have one? <a href="#" onclick="switchTab('login')">Sign in</a></p>
+
+      <form onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <div class="input-wrap">
+            <span class="input-icon"></span>
+            <input id="r-name" type="text" class="form-input" placeholder="Your full name" required autocomplete="name"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div class="input-wrap">
+            <span class="input-icon"></span>
+            <input id="r-email" type="email" class="form-input" placeholder="you@example.com" required autocomplete="email"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-wrap">
+            <span class="input-icon"></span>
+            <input id="r-pass" type="password" class="form-input" placeholder="Min. 6 characters" required minlength="6" autocomplete="new-password"/>
+          </div>
+        </div>
+        <div id="r-err" class="form-error"></div>
+        <button type="submit" id="r-btn" class="btn btn-primary btn-full btn-lg" style="margin-top:8px">
+          Create Account
+        </button>
+      </form>
+    </div>
+
+    <p style="text-align:center;font-size:12px;color:var(--text-3);margin-top:28px">
+      BCA Project II &nbsp;·&nbsp; TaskFlow AI &nbsp;·&nbsp; TU FOHSS
+    </p>
   </div>
+</div>
 
-  <script src="js/config.js"></script>
-  <script src="js/auth.js"></script>
-  <script>
-    // Redirect if already logged in
-    Auth.requireGuest();
+<script src="js/config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  Auth.requireGuest();
 
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById(`tab-${tab}`).classList.add('active');
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        if (b.textContent.toLowerCase().includes(tab === 'login' ? 'sign' : 'create')) {
-          b.classList.add('active');
-        }
-      });
+  // Inject icons
+  document.querySelectorAll('.input-icon').forEach((el, i) => {
+    const iconMap = [Icons.mail(16), Icons.lock(16), Icons.user(16), Icons.mail(16), Icons.lock(16)];
+    el.innerHTML = iconMap[i] || '';
+  });
+
+  function switchTab(tab) {
+    document.getElementById('tab-login').classList.toggle('hidden', tab !== 'login');
+    document.getElementById('tab-register').classList.toggle('hidden', tab !== 'register');
+    document.querySelectorAll('.auth-tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+    });
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('l-btn');
+    const err = document.getElementById('l-err');
+    err.classList.remove('show');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Signing in...';
+    try {
+      await Auth.login(document.getElementById('l-email').value, document.getElementById('l-pass').value);
+      window.location.href = '/dashboard.html';
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
     }
+  }
 
-    async function handleLogin(e) {
-      e.preventDefault();
-      const btn = document.getElementById('login-btn');
-      const errEl = document.getElementById('login-error');
-      errEl.classList.add('hidden');
-
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Signing in...';
-
-      try {
-        await Auth.login(email, password);
-        window.location.href = '/dashboard.html';
-      } catch (err) {
-        errEl.textContent = err.message;
-        errEl.classList.remove('hidden');
-        btn.disabled = false;
-        btn.innerHTML = 'Sign In →';
-      }
+  async function handleRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById('r-btn');
+    const err = document.getElementById('r-err');
+    err.classList.remove('show');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Creating...';
+    try {
+      await Auth.register(document.getElementById('r-name').value, document.getElementById('r-email').value, document.getElementById('r-pass').value);
+      window.location.href = '/dashboard.html';
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
     }
-
-    async function handleRegister(e) {
-      e.preventDefault();
-      const btn = document.getElementById('reg-btn');
-      const errEl = document.getElementById('reg-error');
-      errEl.classList.add('hidden');
-
-      const name = document.getElementById('reg-name').value;
-      const email = document.getElementById('reg-email').value;
-      const password = document.getElementById('reg-password').value;
-
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Creating account...';
-
-      try {
-        await Auth.register(name, email, password);
-        window.location.href = '/dashboard.html';
-      } catch (err) {
-        errEl.textContent = err.message;
-        errEl.classList.remove('hidden');
-        btn.disabled = false;
-        btn.innerHTML = 'Create Account →';
-      }
-    }
-  </script>
+  }
+</script>
 </body>
 </html>

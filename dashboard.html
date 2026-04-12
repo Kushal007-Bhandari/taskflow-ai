@@ -1,153 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — Dashboard</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
-<div class="app-layout">
 
-  <!-- ── Sidebar ─────────────────────────────────────────── -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-brand">
-        <div class="sidebar-logo">✅</div>
-        <div class="sidebar-brand-name">Task<span>Flow</span></div>
+<!-- Mobile Header -->
+<header class="app-header">
+  <button class="btn btn-ghost btn-icon" onclick="Drawer.open()" aria-label="Menu">
+    <span id="menu-icon"></span>
+  </button>
+  <div class="header-title">My Tasks</div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-icon" onclick="toggleSearch()" aria-label="Search">
+      <span id="search-icon-btn"></span>
+    </button>
+  </div>
+</header>
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item active">
+    <span id="nav-home"></span>
+    Tasks
+  </a>
+  <a href="analytics.html" class="nav-item">
+    <span id="nav-chart"></span>
+    Analytics
+  </a>
+  <button class="nav-fab" onclick="openAddModal()" aria-label="New Task">
+    <span id="nav-plus"></span>
+  </button>
+  <a href="summary.html" class="nav-item">
+    <span id="nav-brain"></span>
+    AI
+  </a>
+  <button class="nav-item" onclick="Drawer.open()">
+    <span id="nav-list"></span>
+    More
+  </button>
+</nav>
+
+<!-- Drawer (sidebar) -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="Drawer.close()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-logo">
+      <div class="drawer-logo-icon">
+        <span id="drawer-logo-icon"></span>
       </div>
+      <div class="drawer-logo-name">Task<span>Flow</span></div>
     </div>
+    <button class="btn btn-ghost btn-icon btn-sm" onclick="Drawer.close()">
+      <span id="drawer-close"></span>
+    </button>
+  </div>
 
-    <nav class="sidebar-nav">
-      <div class="sidebar-section-label">Menu</div>
-      <a href="dashboard.html" class="nav-item active">
-        <span class="nav-icon">🏠</span> Dashboard
-      </a>
-      <a href="analytics.html" class="nav-item">
-        <span class="nav-icon">📊</span> Analytics
-      </a>
-      <a href="summary.html" class="nav-item">
-        <span class="nav-icon">🤖</span> AI Summary
-      </a>
+  <nav class="drawer-nav">
+    <div class="drawer-section-label">Navigation</div>
+    <a href="dashboard.html" class="drawer-nav-item active">
+      <span id="d-home"></span> Dashboard
+    </a>
+    <a href="analytics.html" class="drawer-nav-item">
+      <span id="d-chart"></span> Analytics
+    </a>
+    <a href="summary.html" class="drawer-nav-item">
+      <span id="d-brain"></span> AI Summary
+    </a>
 
-      <div class="sidebar-section-label">Categories</div>
-      <div id="sidebar-categories">
-        <div class="skeleton" style="height:32px;margin-bottom:6px"></div>
-        <div class="skeleton" style="height:32px;margin-bottom:6px"></div>
-        <div class="skeleton" style="height:32px"></div>
-      </div>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="user-card" onclick="Auth.logout()">
-        <div class="user-avatar" id="sidebar-user-avatar">?</div>
-        <div class="user-info">
-          <div class="user-name" id="sidebar-user-name">Loading...</div>
-          <div class="user-email" id="sidebar-user-email">Sign out →</div>
-        </div>
-      </div>
+    <div class="drawer-section-label">Categories</div>
+    <div id="drawer-categories">
+      <div class="skeleton" style="height:40px;margin-bottom:6px"></div>
+      <div class="skeleton" style="height:40px;margin-bottom:6px"></div>
+      <div class="skeleton" style="height:40px"></div>
     </div>
-  </aside>
+  </nav>
 
-  <!-- ── Main ────────────────────────────────────────────── -->
-  <main class="main-content">
-
-    <!-- Topbar -->
-    <div class="topbar">
-      <div class="topbar-title" id="page-title">All Tasks</div>
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input class="search-input" id="search-input" type="text" placeholder="Search tasks..." />
+  <div class="drawer-footer">
+    <div class="drawer-user" onclick="Auth.logout()">
+      <div class="avatar" id="drawer-avatar" data-user-avatar style="width:36px;height:36px;font-size:14px">?</div>
+      <div>
+        <div class="user-name" data-user-name>Loading...</div>
+        <div class="logout-hint">Tap to sign out</div>
       </div>
-      <button class="btn btn-primary" onclick="Modal.open('add-todo-modal')">
-        + New Task
+      <span style="margin-left:auto;color:var(--text-3)" id="drawer-logout"></span>
+    </div>
+  </div>
+</aside>
+
+<!-- Main content -->
+<main class="app-main">
+
+  <!-- Search (hidden by default on mobile) -->
+  <div id="search-wrap" class="hidden" style="margin-bottom:14px">
+    <div class="search-bar">
+      <span class="search-icon" id="search-icon-inner"></span>
+      <input id="search-input" type="search" placeholder="Search tasks..." autocomplete="off"/>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Overall Progress</span>
+      <span id="prog-label">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-row" id="filter-row">
+    <button class="chip active" data-status="">All</button>
+    <button class="chip" data-status="pending">Pending</button>
+    <button class="chip" data-status="in_progress">In Progress</button>
+    <button class="chip" data-status="completed">Completed</button>
+    <div class="select-wrap">
+      <select class="app-select" id="filter-priority">
+        <option value="">All Priorities</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+    <div class="select-wrap">
+      <select class="app-select" id="filter-cat">
+        <option value="">All Categories</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Todo List -->
+  <div id="todo-list">
+    <div class="skeleton" style="height:78px;border-radius:14px;margin-bottom:8px"></div>
+    <div class="skeleton" style="height:78px;border-radius:14px;margin-bottom:8px"></div>
+    <div class="skeleton" style="height:78px;border-radius:14px"></div>
+  </div>
+
+</main>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="todo-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-title">New Task</h2>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="Modal.close('todo-modal')">
+        <span id="modal-close-icon"></span>
       </button>
     </div>
-
-    <!-- Page Content -->
-    <div class="page">
-
-      <!-- Stats -->
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-      </div>
-
-      <!-- Filters -->
-      <div class="filters-bar">
-        <button class="filter-chip active" data-status="">All</button>
-        <button class="filter-chip" data-status="pending">Pending</button>
-        <button class="filter-chip" data-status="in_progress">In Progress</button>
-        <button class="filter-chip" data-status="completed">Completed</button>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <select class="filter-select" id="filter-priority">
-            <option value="">All Priorities</option>
-            <option value="high">🔴 High</option>
-            <option value="medium">🟡 Medium</option>
-            <option value="low">🟢 Low</option>
-          </select>
-          <select class="filter-select" id="filter-category">
-            <option value="">All Categories</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Progress -->
-      <div style="margin-bottom:20px">
-        <div class="flex justify-between" style="margin-bottom:8px">
-          <span class="text-sm text-secondary">Overall Progress</span>
-          <span class="text-sm font-mono text-accent" id="progress-label">0%</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-        </div>
-      </div>
-
-      <!-- Todo List -->
-      <div id="todo-list">
-        <div class="skeleton" style="height:72px;border-radius:var(--radius-lg);margin-bottom:8px"></div>
-        <div class="skeleton" style="height:72px;border-radius:var(--radius-lg);margin-bottom:8px"></div>
-        <div class="skeleton" style="height:72px;border-radius:var(--radius-lg)"></div>
-      </div>
-
-    </div>
-  </main>
-</div>
-
-<!-- ── Add / Edit Todo Modal ──────────────────────────────── -->
-<div class="modal-overlay" id="add-todo-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 class="modal-title" id="modal-todo-title">New Task</h3>
-      <button class="btn btn-ghost btn-icon" onclick="Modal.close('add-todo-modal')">✕</button>
-    </div>
     <div class="modal-body">
-      <input type="hidden" id="todo-edit-id" />
+      <input type="hidden" id="edit-id"/>
 
       <div class="form-group">
         <label class="form-label">Task Title *</label>
-        <input type="text" id="todo-title" class="form-input" placeholder="What needs to be done?" required />
+        <input id="t-title" type="text" class="form-input-plain" placeholder="What needs to be done?" required/>
       </div>
 
       <div class="form-group">
         <label class="form-label">Description</label>
-        <textarea id="todo-desc" class="form-input" rows="3" placeholder="Optional details..."></textarea>
+        <textarea id="t-desc" class="form-input-plain" rows="2" placeholder="Optional details..."></textarea>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Priority</label>
-          <select id="todo-priority" class="form-input">
-            <option value="low">🟢 Low</option>
-            <option value="medium" selected>🟡 Medium</option>
-            <option value="high">🔴 High</option>
+          <select id="t-priority" class="form-input-plain">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Status</label>
-          <select id="todo-status" class="form-input">
+          <select id="t-status" class="form-input-plain">
             <option value="pending">Pending</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
@@ -155,336 +191,305 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Category</label>
-          <select id="todo-category" class="form-input">
-            <option value="">No Category</option>
+          <select id="t-cat" class="form-input-plain">
+            <option value="">None</option>
           </select>
         </div>
         <div class="form-group">
           <label class="form-label">Due Date</label>
-          <input type="date" id="todo-due" class="form-input" />
+          <input id="t-due" type="date" class="form-input-plain"/>
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="Modal.close('add-todo-modal')">Cancel</button>
-      <button class="btn btn-primary" id="save-todo-btn" onclick="saveTodo()">Save Task</button>
+      <button class="btn btn-outline" onclick="Modal.close('todo-modal')">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveTodo()">Save Task</button>
     </div>
   </div>
 </div>
 
-<!-- ── Scripts ─────────────────────────────────────────────── -->
 <script src="js/config.js"></script>
+<script src="js/icons.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
-
 <script>
-  // ── State ─────────────────────────────────────────────────
-  let allTodos = [];
-  let allCategories = [];
-  let currentFilters = { status: '', priority: '', category_id: '', search: '' };
+// ── State ────────────────────────────────────────────────────
+let allTodos = [], allCats = [];
+let filters = { status: '', priority: '', category_id: '', search: '' };
+let searchVisible = false;
 
-  // ── Init ──────────────────────────────────────────────────
-  async function init() {
-    const user = await Auth.requireAuth();
-    if (!user) return;
-    populateSidebarUser();
-    await Promise.all([loadCategories(), loadTodos()]);
-    setupListeners();
-  }
+// ── Init ─────────────────────────────────────────────────────
+async function init() {
+  injectIcons();
+  const user = await Auth.requireAuth();
+  if (!user) return;
+  populateSidebarUser();
+  await Promise.all([loadCats(), loadTodos()]);
+  setupListeners();
+}
 
-  // ── Load todos ────────────────────────────────────────────
-  async function loadTodos() {
-    try {
-      const filters = {};
-      if (currentFilters.status)      filters.status      = currentFilters.status;
-      if (currentFilters.priority)    filters.priority    = currentFilters.priority;
-      if (currentFilters.category_id) filters.category_id = currentFilters.category_id;
-      if (currentFilters.search)      filters.search      = currentFilters.search;
+function injectIcons() {
+  document.getElementById('menu-icon').innerHTML        = Icons.menu(20);
+  document.getElementById('search-icon-btn').innerHTML  = Icons.search(20);
+  document.getElementById('search-icon-inner').innerHTML= Icons.search(16);
+  document.getElementById('nav-home').innerHTML         = Icons.home(22);
+  document.getElementById('nav-chart').innerHTML        = Icons.chart(22);
+  document.getElementById('nav-plus').innerHTML         = Icons.plus(24);
+  document.getElementById('nav-brain').innerHTML        = Icons.brain(22);
+  document.getElementById('nav-list').innerHTML         = Icons.list(22);
+  document.getElementById('drawer-logo-icon').innerHTML = Icons.check(18);
+  document.getElementById('drawer-close').innerHTML     = Icons.x(18);
+  document.getElementById('d-home').innerHTML           = Icons.home(18);
+  document.getElementById('d-chart').innerHTML          = Icons.chart(18);
+  document.getElementById('d-brain').innerHTML          = Icons.brain(18);
+  document.getElementById('drawer-logout').innerHTML    = Icons.logout(16);
+  document.getElementById('modal-close-icon').innerHTML = Icons.x(18);
+}
 
-      allTodos = await TodoAPI.getTodos(filters);
-      renderTodos(allTodos);
-      renderStats(allTodos);
-    } catch (err) {
-      Toast.error('Failed to load tasks');
-    }
-  }
+function toggleSearch() {
+  searchVisible = !searchVisible;
+  document.getElementById('search-wrap').classList.toggle('hidden', !searchVisible);
+  if (searchVisible) document.getElementById('search-input').focus();
+}
 
-  // ── Load categories ───────────────────────────────────────
-  async function loadCategories() {
-    try {
-      allCategories = await TodoAPI.getCategories();
-      renderSidebarCategories();
-      populateCategoryDropdowns();
-    } catch (err) {
-      console.error('Categories error:', err);
-    }
-  }
+// ── Load ─────────────────────────────────────────────────────
+async function loadTodos() {
+  try {
+    const f = {};
+    if (filters.status)      f.status      = filters.status;
+    if (filters.priority)    f.priority    = filters.priority;
+    if (filters.category_id) f.category_id = filters.category_id;
+    if (filters.search)      f.search      = filters.search;
+    allTodos = await TodoAPI.getTodos(f);
+    renderTodos();
+    renderStats();
+  } catch(e) { Toast.error('Failed to load tasks'); }
+}
 
-  // ── Render todos ──────────────────────────────────────────
-  function renderTodos(todos) {
-    const container = document.getElementById('todo-list');
+async function loadCats() {
+  try {
+    allCats = await TodoAPI.getCategories();
+    renderDrawerCats();
+    populateCatDropdowns();
+  } catch(e) { console.error(e); }
+}
 
-    if (!todos.length) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">📋</div>
-          <div class="empty-title">No tasks found</div>
-          <p class="empty-sub">
-            ${currentFilters.status || currentFilters.priority || currentFilters.search
-              ? 'Try changing your filters'
-              : 'Create your first task to get started!'}
-          </p>
-          <button class="btn btn-primary" onclick="Modal.open('add-todo-modal')">+ New Task</button>
-        </div>`;
-      return;
-    }
-
-    container.innerHTML = todos.map(todo => {
-      const isCompleted = todo.status === 'completed';
-      const dueClass    = todo.due_date ? (DateUtils.isOverdue(todo.due_date) && !isCompleted ? 'overdue' : DateUtils.isSoon(todo.due_date) ? 'soon' : '') : '';
-
-      return `
-        <div class="todo-item ${isCompleted ? 'completed' : ''} priority-${todo.priority}"
-             data-id="${todo.id}">
-          <button class="todo-check ${isCompleted ? 'checked' : ''}"
-                  onclick="toggleTodo('${todo.id}', '${todo.status}')" title="Toggle complete">
-            ${isCompleted ? '✓' : ''}
-          </button>
-          <div class="todo-body" onclick="openEditModal('${todo.id}')">
-            <div class="todo-title">${escapeHtml(todo.title)}</div>
-            <div class="todo-meta">
-              ${todo.category_name ? `<span class="todo-tag category">
-                <span style="color:${todo.category_color}">${todo.category_icon || '📁'}</span>
-                ${escapeHtml(todo.category_name)}
-              </span>` : ''}
-              ${priorityBadge(todo.priority)}
-              ${todo.status === 'in_progress' ? `<span class="badge badge-blue">In Progress</span>` : ''}
-              ${todo.due_date ? `<span class="todo-due ${dueClass}">📅 ${DateUtils.formatShort(todo.due_date)}</span>` : ''}
-              ${isCompleted && todo.completed_at ? `<span class="todo-due">✓ ${DateUtils.formatShort(todo.completed_at)}</span>` : ''}
-            </div>
-          </div>
-          <div class="todo-actions">
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditModal('${todo.id}')" data-tooltip="Edit">✏️</button>
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteTodo('${todo.id}')" data-tooltip="Delete">🗑️</button>
-          </div>
-        </div>`;
-    }).join('');
-  }
-
-  // ── Render stats ──────────────────────────────────────────
-  function renderStats(todos) {
-    const total     = todos.filter(t => t.status !== 'cancelled').length;
-    const completed = todos.filter(t => t.status === 'completed').length;
-    const pending   = todos.filter(t => t.status === 'pending').length;
-    const overdue   = todos.filter(t => t.due_date && DateUtils.isOverdue(t.due_date) && t.status !== 'completed' && t.status !== 'cancelled').length;
-    const rate      = completionRate(completed, total);
-
-    document.getElementById('stats-grid').innerHTML = `
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--accent-subtle)">📋</div>
-        <div class="stat-value">${total}</div>
-        <div class="stat-label">Total Tasks</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--green-subtle)">✅</div>
-        <div class="stat-value" style="color:var(--green)">${completed}</div>
-        <div class="stat-label">Completed</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--blue-subtle)">⏳</div>
-        <div class="stat-value" style="color:var(--blue)">${pending}</div>
-        <div class="stat-label">Pending</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--${overdue ? 'red' : 'accent'}-subtle)">
-          ${overdue ? '⚠️' : '🎯'}
-        </div>
-        <div class="stat-value" style="color:var(--${overdue ? 'red' : 'accent'})">${overdue || rate + '%'}</div>
-        <div class="stat-label">${overdue ? 'Overdue' : 'Completion Rate'}</div>
-      </div>`;
-
-    // Progress bar
-    document.getElementById('progress-fill').style.width = rate + '%';
-    document.getElementById('progress-label').textContent = rate + '%';
-  }
-
-  // ── Render sidebar categories ─────────────────────────────
-  function renderSidebarCategories() {
-    const container = document.getElementById('sidebar-categories');
-    container.innerHTML = `
-      <button class="nav-item" onclick="filterByCategory('')">
-        <span class="nav-icon">📋</span> All Tasks
-        <span class="nav-badge">${allTodos.length}</span>
+// ── Render todos ──────────────────────────────────────────────
+function renderTodos() {
+  const el = document.getElementById('todo-list');
+  if (!allTodos.length) {
+    el.innerHTML = `<div class="empty">
+      <div class="empty-icon">${Icons.list(28)}</div>
+      <h3>${filters.status || filters.search ? 'No results' : 'No tasks yet'}</h3>
+      <p>${filters.status || filters.search ? 'Try changing filters' : 'Create your first task to get started'}</p>
+      <button class="btn btn-primary" onclick="openAddModal()">
+        ${Icons.plus(16)} New Task
       </button>
-      ${allCategories.map(cat => `
-        <button class="nav-item" onclick="filterByCategory('${cat.id}')">
-          <span class="category-dot" style="background:${cat.color}"></span>
-          ${escapeHtml(cat.name)}
-          <span class="nav-badge">${cat.todo_count || 0}</span>
-        </button>
-      `).join('')}
-    `;
+    </div>`;
+    return;
   }
 
-  // ── Populate category dropdowns ───────────────────────────
-  function populateCategoryDropdowns() {
-    const opts = allCategories.map(c =>
-      `<option value="${c.id}">${c.icon || '📁'} ${escapeHtml(c.name)}</option>`
-    ).join('');
+  el.innerHTML = allTodos.map(t => {
+    const done  = t.status === 'completed';
+    const over  = t.due_date && DateUtils.isOverdue(t.due_date) && !done;
+    const soon  = t.due_date && DateUtils.isSoon(t.due_date) && !done;
+    return `<div class="todo-item ${done ? 'completed' : ''} p-${t.priority}" onclick="openEditModal('${t.id}')">
+      <button class="todo-check ${done ? 'done' : ''}"
+        onclick="event.stopPropagation();toggleTodo('${t.id}','${t.status}')">
+        ${done ? Icons.check(13) : ''}
+      </button>
+      <div class="todo-body">
+        <div class="todo-title">${esc(t.title)}</div>
+        <div class="todo-meta">
+          ${t.category_name ? `<span class="tag tag-cat">
+            <span style="width:7px;height:7px;border-radius:50%;background:${t.category_color};display:inline-block"></span>
+            ${esc(t.category_name)}
+          </span>` : ''}
+          ${priorityTag(t.priority)}
+          ${t.status === 'in_progress' ? `<span class="tag tag-blue">In Progress</span>` : ''}
+          ${t.due_date ? `<span class="tag tag-date ${over ? 'overdue' : soon ? 'soon' : ''}">
+            ${Icons.calendar(11)} ${DateUtils.formatShort(t.due_date)}
+          </span>` : ''}
+        </div>
+      </div>
+      <div class="todo-actions">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="event.stopPropagation();openEditModal('${t.id}')">${Icons.edit(15)}</button>
+        <button class="btn btn-danger btn-icon btn-sm" onclick="event.stopPropagation();deleteTodo('${t.id}')">${Icons.trash(15)}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
-    document.getElementById('filter-category').innerHTML =
-      `<option value="">All Categories</option>${opts}`;
-    document.getElementById('todo-category').innerHTML =
-      `<option value="">No Category</option>${opts}`;
-  }
+// ── Stats ─────────────────────────────────────────────────────
+function renderStats() {
+  const total     = allTodos.filter(t => t.status !== 'cancelled').length;
+  const completed = allTodos.filter(t => t.status === 'completed').length;
+  const pending   = allTodos.filter(t => t.status === 'pending').length;
+  const overdue   = allTodos.filter(t => t.due_date && DateUtils.isOverdue(t.due_date) && t.status !== 'completed').length;
+  const rate      = completionRate(completed, total);
 
-  // ── Toggle complete ───────────────────────────────────────
-  async function toggleTodo(id, currentStatus) {
-    try {
-      await TodoAPI.toggleComplete(id, currentStatus);
-      await loadTodos();
-      Toast.success(currentStatus === 'completed' ? 'Marked as pending' : '✅ Task completed!');
-    } catch (err) {
-      Toast.error('Failed to update task');
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--accent-bg);color:var(--accent-2)">${Icons.list(20)}</div>
+      <div class="stat-value">${total}</div>
+      <div class="stat-label">Total Tasks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--green-bg);color:var(--green)">${Icons.circle_check(20)}</div>
+      <div class="stat-value" style="color:var(--green)">${completed}</div>
+      <div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--blue-bg);color:var(--blue)">${Icons.clock(20)}</div>
+      <div class="stat-value" style="color:var(--blue)">${pending}</div>
+      <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--${overdue?'red':'accent'}-bg);color:var(--${overdue?'red':'accent-2'})">${overdue ? Icons.alert(20) : Icons.trending(20)}</div>
+      <div class="stat-value" style="color:var(--${overdue?'red':'accent-2'})">${overdue || rate+'%'}</div>
+      <div class="stat-label">${overdue ? 'Overdue' : 'Success Rate'}</div>
+    </div>`;
+
+  document.getElementById('prog-fill').style.width = rate + '%';
+  document.getElementById('prog-label').textContent = rate + '%';
+}
+
+// ── Drawer cats ───────────────────────────────────────────────
+function renderDrawerCats() {
+  document.getElementById('drawer-categories').innerHTML = `
+    <button class="drawer-nav-item" onclick="filterByCat('');Drawer.close()">
+      ${Icons.folder(16)} All Tasks
+      <span class="drawer-badge">${allTodos.length}</span>
+    </button>
+    ${allCats.map(c => `
+      <button class="drawer-nav-item" onclick="filterByCat('${c.id}');Drawer.close()">
+        <span class="cat-dot" style="background:${c.color}"></span>
+        ${esc(c.name)}
+        <span class="drawer-badge">${c.todo_count || 0}</span>
+      </button>`).join('')}`;
+}
+
+function populateCatDropdowns() {
+  const opts = allCats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  document.getElementById('filter-cat').innerHTML = `<option value="">All Categories</option>${opts}`;
+  document.getElementById('t-cat').innerHTML = `<option value="">None</option>${opts}`;
+}
+
+// ── Actions ───────────────────────────────────────────────────
+async function toggleTodo(id, status) {
+  try {
+    await TodoAPI.toggleComplete(id, status);
+    await loadTodos();
+    Toast.success(status === 'completed' ? 'Marked as pending' : 'Task completed!');
+  } catch(e) { Toast.error('Failed to update'); }
+}
+
+async function deleteTodo(id) {
+  if (!confirm('Delete this task?')) return;
+  try {
+    await TodoAPI.deleteTodo(id);
+    await loadTodos();
+    Toast.success('Task deleted');
+  } catch(e) { Toast.error('Failed to delete'); }
+}
+
+function openAddModal() {
+  resetModal();
+  document.getElementById('modal-title').textContent = 'New Task';
+  Modal.open('todo-modal');
+}
+
+function openEditModal(id) {
+  const t = allTodos.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('modal-title').textContent = 'Edit Task';
+  document.getElementById('edit-id').value     = t.id;
+  document.getElementById('t-title').value     = t.title;
+  document.getElementById('t-desc').value      = t.description || '';
+  document.getElementById('t-priority').value  = t.priority;
+  document.getElementById('t-status').value    = t.status;
+  document.getElementById('t-cat').value       = t.category_id || '';
+  document.getElementById('t-due').value       = DateUtils.toInput(t.due_date);
+  Modal.open('todo-modal');
+}
+
+async function saveTodo() {
+  const title = document.getElementById('t-title').value.trim();
+  if (!title) { Toast.error('Title is required'); return; }
+
+  const btn = document.getElementById('save-btn');
+  setLoading(btn, true, 'Saving...');
+
+  const payload = {
+    title,
+    description:  document.getElementById('t-desc').value,
+    priority:     document.getElementById('t-priority').value,
+    status:       document.getElementById('t-status').value,
+    category_id:  document.getElementById('t-cat').value || null,
+    due_date:     document.getElementById('t-due').value || null,
+  };
+
+  const editId = document.getElementById('edit-id').value;
+
+  try {
+    if (editId) {
+      await TodoAPI.updateTodo({ ...payload, id: editId });
+      Toast.success('Task updated!');
+    } else {
+      await TodoAPI.createTodo(payload);
+      Toast.success('Task created!');
     }
+    Modal.close('todo-modal');
+    resetModal();
+    await loadTodos();
+  } catch(e) {
+    Toast.error(e.message);
+  } finally {
+    setLoading(btn, false);
   }
+}
 
-  // ── Delete ────────────────────────────────────────────────
-  async function deleteTodo(id) {
-    if (!window.confirm('Delete this task?')) return;
-    try {
-      await TodoAPI.deleteTodo(id);
-      await loadTodos();
-      Toast.success('Task deleted');
-    } catch (err) {
-      Toast.error('Failed to delete');
-    }
-  }
+function resetModal() {
+  document.getElementById('edit-id').value    = '';
+  document.getElementById('t-title').value    = '';
+  document.getElementById('t-desc').value     = '';
+  document.getElementById('t-priority').value = 'medium';
+  document.getElementById('t-status').value   = 'pending';
+  document.getElementById('t-cat').value      = '';
+  document.getElementById('t-due').value      = '';
+}
 
-  // ── Open Edit Modal ───────────────────────────────────────
-  function openEditModal(id) {
-    const todo = allTodos.find(t => t.id === id);
-    if (!todo) return;
+function filterByCat(catId) {
+  filters.category_id = catId;
+  loadTodos();
+}
 
-    document.getElementById('modal-todo-title').textContent  = 'Edit Task';
-    document.getElementById('todo-edit-id').value            = todo.id;
-    document.getElementById('todo-title').value              = todo.title;
-    document.getElementById('todo-desc').value               = todo.description || '';
-    document.getElementById('todo-priority').value           = todo.priority;
-    document.getElementById('todo-status').value             = todo.status;
-    document.getElementById('todo-category').value           = todo.category_id || '';
-    document.getElementById('todo-due').value                = DateUtils.toInputFormat(todo.due_date);
-
-    Modal.open('add-todo-modal');
-  }
-
-  // ── Save todo ─────────────────────────────────────────────
-  async function saveTodo() {
-    const title = document.getElementById('todo-title').value.trim();
-    if (!title) { Toast.error('Title is required'); return; }
-
-    const btn = document.getElementById('save-todo-btn');
-    setLoading(btn, true, 'Saving...');
-
-    const payload = {
-      title,
-      description:  document.getElementById('todo-desc').value,
-      priority:     document.getElementById('todo-priority').value,
-      status:       document.getElementById('todo-status').value,
-      category_id:  document.getElementById('todo-category').value || null,
-      due_date:     document.getElementById('todo-due').value || null,
-    };
-
-    const editId = document.getElementById('todo-edit-id').value;
-
-    try {
-      if (editId) {
-        await TodoAPI.updateTodo({ ...payload, id: editId });
-        Toast.success('Task updated!');
-      } else {
-        await TodoAPI.createTodo(payload);
-        Toast.success('Task created!');
-      }
-      Modal.close('add-todo-modal');
-      resetModal();
-      await loadTodos();
-    } catch (err) {
-      Toast.error(err.message);
-    } finally {
-      setLoading(btn, false);
-    }
-  }
-
-  function resetModal() {
-    document.getElementById('modal-todo-title').textContent = 'New Task';
-    document.getElementById('todo-edit-id').value = '';
-    document.getElementById('todo-title').value = '';
-    document.getElementById('todo-desc').value = '';
-    document.getElementById('todo-priority').value = 'medium';
-    document.getElementById('todo-status').value = 'pending';
-    document.getElementById('todo-category').value = '';
-    document.getElementById('todo-due').value = '';
-  }
-
-  // ── Filter helpers ────────────────────────────────────────
-  function filterByCategory(catId) {
-    currentFilters.category_id = catId;
-    const cat = allCategories.find(c => c.id === catId);
-    document.getElementById('page-title').textContent = cat ? `${cat.icon} ${cat.name}` : 'All Tasks';
-    loadTodos();
-  }
-
-  // ── Setup listeners ───────────────────────────────────────
-  function setupListeners() {
-    // Status chips
-    document.querySelectorAll('.filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        currentFilters.status = chip.dataset.status;
-        loadTodos();
-      });
-    });
-
-    // Priority filter
-    document.getElementById('filter-priority').addEventListener('change', (e) => {
-      currentFilters.priority = e.target.value;
+// ── Listeners ─────────────────────────────────────────────────
+function setupListeners() {
+  document.querySelectorAll('.chip[data-status]').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.chip[data-status]').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+      filters.status = c.dataset.status;
       loadTodos();
     });
+  });
+  document.getElementById('filter-priority').addEventListener('change', e => {
+    filters.priority = e.target.value; loadTodos();
+  });
+  document.getElementById('filter-cat').addEventListener('change', e => {
+    filters.category_id = e.target.value; loadTodos();
+  });
+  document.getElementById('search-input').addEventListener('input', debounce(e => {
+    filters.search = e.target.value; loadTodos();
+  }, 400));
+}
 
-    // Category filter (dropdown in topbar)
-    document.getElementById('filter-category').addEventListener('change', (e) => {
-      currentFilters.category_id = e.target.value;
-      loadTodos();
-    });
-
-    // Search (debounced)
-    const debouncedSearch = debounce((val) => {
-      currentFilters.search = val;
-      loadTodos();
-    }, 400);
-    document.getElementById('search-input').addEventListener('input', (e) => {
-      debouncedSearch(e.target.value);
-    });
-
-    // Add modal reset on close
-    document.getElementById('add-todo-modal').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) resetModal();
-    });
-  }
-
-  // ── Helpers ───────────────────────────────────────────────
-  function escapeHtml(str) {
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
-  init();
+init();
 </script>
 </body>
 </html>

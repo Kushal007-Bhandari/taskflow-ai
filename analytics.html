@@ -1,354 +1,275 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — Analytics</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-<div class="app-layout">
 
-  <!-- Sidebar (shared) -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-brand">
-        <div class="sidebar-logo">✅</div>
-        <div class="sidebar-brand-name">Task<span>Flow</span></div>
-      </div>
+<header class="app-header">
+  <button class="btn btn-ghost btn-icon" onclick="Drawer.open()"><span id="menu-icon"></span></button>
+  <div class="header-title">Analytics</div>
+  <div style="width:40px"></div>
+</header>
+
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span id="nav-home"></span>Tasks</a>
+  <a href="analytics.html" class="nav-item active"><span id="nav-chart"></span>Analytics</a>
+  <button class="nav-fab" onclick="window.location.href='dashboard.html'" aria-label="New Task"><span id="nav-plus"></span></button>
+  <a href="summary.html" class="nav-item"><span id="nav-brain"></span>AI</a>
+  <button class="nav-item" onclick="Drawer.open()"><span id="nav-list"></span>More</button>
+</nav>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="Drawer.close()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-logo">
+      <div class="drawer-logo-icon"><span id="drawer-check"></span></div>
+      <div class="drawer-logo-name">Task<span>Flow</span></div>
     </div>
-    <nav class="sidebar-nav">
-      <div class="sidebar-section-label">Menu</div>
-      <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span> Dashboard</a>
-      <a href="analytics.html" class="nav-item active"><span class="nav-icon">📊</span> Analytics</a>
-      <a href="summary.html"   class="nav-item"><span class="nav-icon">🤖</span> AI Summary</a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-card" onclick="Auth.logout()">
-        <div class="user-avatar" id="sidebar-user-avatar">?</div>
-        <div class="user-info">
-          <div class="user-name"  id="sidebar-user-name">Loading...</div>
-          <div class="user-email" id="sidebar-user-email">Sign out →</div>
-        </div>
-      </div>
+    <button class="btn btn-ghost btn-icon btn-sm" onclick="Drawer.close()"><span id="drawer-close"></span></button>
+  </div>
+  <nav class="drawer-nav">
+    <div class="drawer-section-label">Navigation</div>
+    <a href="dashboard.html" class="drawer-nav-item"><span id="d-home"></span> Dashboard</a>
+    <a href="analytics.html" class="drawer-nav-item active"><span id="d-chart"></span> Analytics</a>
+    <a href="summary.html"   class="drawer-nav-item"><span id="d-brain"></span> AI Summary</a>
+  </nav>
+  <div class="drawer-footer">
+    <div class="drawer-user" onclick="Auth.logout()">
+      <div class="avatar" data-user-avatar style="width:36px;height:36px;font-size:14px">?</div>
+      <div><div class="user-name" data-user-name>Loading...</div><div class="logout-hint">Tap to sign out</div></div>
+      <span style="margin-left:auto;color:var(--text-3)" id="d-logout"></span>
     </div>
-  </aside>
+  </div>
+</aside>
 
-  <main class="main-content">
-    <div class="topbar">
-      <div class="topbar-title">Analytics</div>
-      <div class="date-range-tabs">
-        <button class="date-range-tab" data-days="7"  onclick="setRange(7)">7 Days</button>
-        <button class="date-range-tab active" data-days="30" onclick="setRange(30)">30 Days</button>
-        <button class="date-range-tab" data-days="90" onclick="setRange(90)">90 Days</button>
-        <button class="date-range-tab" data-days="365" onclick="setRange(365)">1 Year</button>
-      </div>
+<main class="app-main">
+
+  <!-- Range selector -->
+  <div class="range-tabs">
+    <button class="range-tab" data-days="7"   onclick="setRange(7)">7 Days</button>
+    <button class="range-tab active" data-days="30" onclick="setRange(30)">30 Days</button>
+    <button class="range-tab" data-days="90"  onclick="setRange(90)">90 Days</button>
+    <button class="range-tab" data-days="365" onclick="setRange(365)">1 Year</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+    <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-title">Daily Activity</div>
+      <div class="card-sub">Created vs completed per day</div>
+      <div class="chart-wrap"><canvas id="activity-chart"></canvas></div>
     </div>
-
-    <div class="page">
-      <!-- Overview Stats -->
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-        <div class="stat-card"><div class="skeleton" style="height:80px"></div></div>
-      </div>
-
-      <!-- Charts Row 1 -->
-      <div class="charts-grid" id="charts-row1">
-        <div class="chart-card">
-          <div class="chart-card-title">Daily Activity</div>
-          <div class="chart-card-sub">Tasks created vs completed per day</div>
-          <div class="chart-wrap"><canvas id="activity-chart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title">By Priority</div>
-          <div class="chart-card-sub">Task distribution</div>
-          <div class="chart-wrap"><canvas id="priority-chart"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Charts Row 2 -->
-      <div class="charts-grid" style="grid-template-columns:1fr 1fr">
-        <div class="chart-card">
-          <div class="chart-card-title">By Category</div>
-          <div class="chart-card-sub">Tasks per category</div>
-          <div class="chart-wrap"><canvas id="category-chart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title">Best Days</div>
-          <div class="chart-card-sub">Most completions by day of week</div>
-          <div class="chart-wrap"><canvas id="weekday-chart"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Category Table -->
-      <div class="chart-card" style="margin-top:20px">
-        <div class="chart-card-title">Category Breakdown</div>
-        <div class="chart-card-sub">Completion rates per category</div>
-        <div id="category-table"></div>
-      </div>
+    <div class="card">
+      <div class="card-title">By Priority</div>
+      <div class="card-sub">Task distribution</div>
+      <div class="chart-wrap"><canvas id="priority-chart"></canvas></div>
     </div>
-  </main>
-</div>
+  </div>
+
+  <div class="charts-row-2">
+    <div class="card">
+      <div class="card-title">By Category</div>
+      <div class="card-sub">Tasks per category</div>
+      <div class="chart-wrap"><canvas id="category-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Best Days</div>
+      <div class="card-sub">Completions by weekday</div>
+      <div class="chart-wrap"><canvas id="weekday-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Category table -->
+  <div class="card">
+    <div class="card-title">Category Breakdown</div>
+    <div class="card-sub">Completion rates</div>
+    <div class="overflow-x" id="cat-table"></div>
+  </div>
+
+</main>
 
 <script src="js/config.js"></script>
+<script src="js/icons.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/api.js"></script>
 <script src="js/ui.js"></script>
-
 <script>
-  let currentRange = 30;
-  let charts = {};
+let range = 30;
+let charts = {};
 
-  const CHART_DEFAULTS = {
-    color: { primary: '#f0883e', green: '#3fb950', blue: '#58a6ff', purple: '#bc8cff', red: '#f85149', yellow: '#d29922' },
-    font: "'Outfit', sans-serif",
-  };
+Chart.defaults.color          = '#94a3b8';
+Chart.defaults.font.family    = "'Inter', sans-serif";
+Chart.defaults.borderColor    = '#1e2d45';
 
-  Chart.defaults.color = '#8b949e';
-  Chart.defaults.font.family = CHART_DEFAULTS.font;
-  Chart.defaults.borderColor = '#30363d';
+async function init() {
+  injectIcons();
+  const user = await Auth.requireAuth();
+  if (!user) return;
+  populateSidebarUser();
+  await loadStats();
+}
 
-  async function init() {
-    const user = await Auth.requireAuth();
-    if (!user) return;
-    populateSidebarUser();
-    await loadStats();
-  }
+function injectIcons() {
+  document.getElementById('menu-icon').innerHTML  = Icons.menu(20);
+  document.getElementById('nav-home').innerHTML   = Icons.home(22);
+  document.getElementById('nav-chart').innerHTML  = Icons.chart(22);
+  document.getElementById('nav-plus').innerHTML   = Icons.plus(24);
+  document.getElementById('nav-brain').innerHTML  = Icons.brain(22);
+  document.getElementById('nav-list').innerHTML   = Icons.list(22);
+  document.getElementById('drawer-check').innerHTML = Icons.check(18);
+  document.getElementById('drawer-close').innerHTML = Icons.x(18);
+  document.getElementById('d-home').innerHTML     = Icons.home(18);
+  document.getElementById('d-chart').innerHTML    = Icons.chart(18);
+  document.getElementById('d-brain').innerHTML    = Icons.brain(18);
+  document.getElementById('d-logout').innerHTML   = Icons.logout(16);
+}
 
-  async function loadStats() {
-    try {
-      const data = await TodoAPI.getStats(currentRange);
-      renderStats(data.overview);
-      renderActivityChart(data.dailyCreated, data.dailyCompletions);
-      renderPriorityChart(data.priorityBreakdown);
-      renderCategoryChart(data.categoryBreakdown);
-      renderWeekdayChart(data.byDayOfWeek);
-      renderCategoryTable(data.categoryBreakdown);
-    } catch (err) {
-      Toast.error('Failed to load analytics');
-      console.error(err);
-    }
-  }
+async function loadStats() {
+  try {
+    const data = await TodoAPI.getStats(range);
+    renderStats(data.overview);
+    renderActivity(data.dailyCreated, data.dailyCompletions);
+    renderPriority(data.priorityBreakdown);
+    renderCategory(data.categoryBreakdown);
+    renderWeekday(data.byDayOfWeek);
+    renderCatTable(data.categoryBreakdown);
+  } catch(e) { Toast.error('Failed to load analytics'); }
+}
 
-  function setRange(days) {
-    currentRange = days;
-    document.querySelectorAll('.date-range-tab').forEach(t => {
-      t.classList.toggle('active', parseInt(t.dataset.days) === days);
-    });
-    // Destroy old charts
-    Object.values(charts).forEach(c => c.destroy());
-    charts = {};
-    loadStats();
-  }
+function setRange(days) {
+  range = days;
+  document.querySelectorAll('.range-tab').forEach(t =>
+    t.classList.toggle('active', parseInt(t.dataset.days) === days));
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+  loadStats();
+}
 
-  function renderStats(o) {
-    const rate = o.total > 0 ? Math.round(o.completed / o.total * 100) : 0;
-    const recentRate = o.recent_total > 0 ? Math.round(o.recent_completed / o.recent_total * 100) : 0;
-    document.getElementById('stats-grid').innerHTML = `
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--accent-subtle)">📋</div>
-        <div class="stat-value">${o.total}</div>
-        <div class="stat-label">All Time Tasks</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--green-subtle)">✅</div>
-        <div class="stat-value" style="color:var(--green)">${o.completed}</div>
-        <div class="stat-label">Completed</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--blue-subtle)">📈</div>
-        <div class="stat-value" style="color:var(--blue)">${rate}%</div>
-        <div class="stat-label">Completion Rate</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background:var(--${o.overdue ? 'red' : 'purple'}-subtle)">
-          ${o.overdue ? '⚠️' : '🎯'}
-        </div>
-        <div class="stat-value" style="color:var(--${o.overdue ? 'red' : 'purple'})">${o.overdue || recentRate + '%'}</div>
-        <div class="stat-label">${o.overdue ? 'Overdue' : `Last ${currentRange}d Rate`}</div>
-      </div>`;
-  }
+function renderStats(o) {
+  const rate = o.total > 0 ? Math.round(o.completed / o.total * 100) : 0;
+  const recentRate = o.recent_total > 0 ? Math.round(o.recent_completed / o.recent_total * 100) : 0;
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--accent-bg);color:var(--accent-2)">${Icons.list(20)}</div>
+      <div class="stat-value">${o.total}</div><div class="stat-label">All Time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--green-bg);color:var(--green)">${Icons.circle_check(20)}</div>
+      <div class="stat-value" style="color:var(--green)">${o.completed}</div><div class="stat-label">Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--blue-bg);color:var(--blue)">${Icons.trending(20)}</div>
+      <div class="stat-value" style="color:var(--blue)">${rate}%</div><div class="stat-label">All Time Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap" style="background:var(--${o.overdue?'red':'accent'}-bg);color:var(--${o.overdue?'red':'accent-2'})">${o.overdue?Icons.alert(20):Icons.sparkles(20)}</div>
+      <div class="stat-value" style="color:var(--${o.overdue?'red':'accent-2'})">${o.overdue||recentRate+'%'}</div>
+      <div class="stat-label">${o.overdue?'Overdue':`Last ${range}d`}</div>
+    </div>`;
+}
 
-  function renderActivityChart(created, completed) {
-    const days = DateUtils.lastNDays(Math.min(currentRange, 30));
-    const createdMap  = Object.fromEntries(created.map(d => [d.date, parseInt(d.count)]));
-    const completedMap = Object.fromEntries(completed.map(d => [d.date, parseInt(d.count)]));
+function renderActivity(created, completed) {
+  const days = DateUtils.lastNDays(Math.min(range, 30));
+  const cMap = Object.fromEntries(created.map(d => [d.date, +d.count]));
+  const dMap = Object.fromEntries(completed.map(d => [d.date, +d.count]));
+  const ctx = document.getElementById('activity-chart').getContext('2d');
+  charts.activity = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: days.map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+      datasets: [
+        { label: 'Created',   data: days.map(d => cMap[d]||0), backgroundColor: 'rgba(59,130,246,0.5)', borderColor: '#3b82f6', borderWidth: 1, borderRadius: 4 },
+        { label: 'Completed', data: days.map(d => dMap[d]||0), backgroundColor: 'rgba(34,197,94,0.5)',  borderColor: '#22c55e', borderWidth: 1, borderRadius: 4 },
+      ],
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { x: { grid: { color: '#1e2d45' }, ticks: { maxTicksLimit: 8 } }, y: { grid: { color: '#1e2d45' }, beginAtZero: true, ticks: { stepSize: 1 } } } },
+  });
+}
 
-    const ctx = document.getElementById('activity-chart').getContext('2d');
-    charts.activity = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: days.map(d => {
-          const dt = new Date(d);
-          return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }),
-        datasets: [
-          {
-            label: 'Created',
-            data: days.map(d => createdMap[d] || 0),
-            backgroundColor: 'rgba(88,166,255,0.5)',
-            borderColor: '#58a6ff',
-            borderWidth: 1,
-            borderRadius: 4,
-          },
-          {
-            label: 'Completed',
-            data: days.map(d => completedMap[d] || 0),
-            backgroundColor: 'rgba(63,185,80,0.5)',
-            borderColor: '#3fb950',
-            borderWidth: 1,
-            borderRadius: 4,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' } },
-        scales: {
-          x: { grid: { color: '#21262d' }, ticks: { maxTicksLimit: 10 } },
-          y: { grid: { color: '#21262d' }, beginAtZero: true, ticks: { stepSize: 1 } },
-        },
-      },
-    });
-  }
+function renderPriority(data) {
+  const colors = { high: '#ef4444', medium: '#f59e0b', low: '#22c55e' };
+  const ctx = document.getElementById('priority-chart').getContext('2d');
+  charts.priority = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.map(d => d.priority.charAt(0).toUpperCase() + d.priority.slice(1)),
+      datasets: [{ data: data.map(d => +d.count), backgroundColor: data.map(d => colors[d.priority]||'#94a3b8'), borderColor: '#111827', borderWidth: 3, hoverOffset: 6 }],
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true } } }, cutout: '68%' },
+  });
+}
 
-  function renderPriorityChart(data) {
-    const colors = { high: '#f85149', medium: '#d29922', low: '#3fb950' };
-    const ctx = document.getElementById('priority-chart').getContext('2d');
-    charts.priority = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: data.map(d => d.priority.charAt(0).toUpperCase() + d.priority.slice(1)),
-        datasets: [{
-          data: data.map(d => parseInt(d.count)),
-          backgroundColor: data.map(d => colors[d.priority] || '#8b949e'),
-          borderColor: '#161b22',
-          borderWidth: 3,
-          hoverOffset: 6,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true } },
-        },
-        cutout: '70%',
-      },
-    });
-  }
+function renderCategory(data) {
+  const ctx = document.getElementById('category-chart').getContext('2d');
+  charts.category = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.name),
+      datasets: [{ data: data.map(d => +d.count), backgroundColor: data.map(d => d.color+'80'), borderColor: data.map(d => d.color), borderWidth: 1, borderRadius: 6 }],
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { color: '#1e2d45' }, beginAtZero: true }, y: { grid: { display: false } } } },
+  });
+}
 
-  function renderCategoryChart(data) {
-    const ctx = document.getElementById('category-chart').getContext('2d');
-    charts.category = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: data.map(d => d.name),
-        datasets: [{
-          label: 'Total',
-          data: data.map(d => parseInt(d.count)),
-          backgroundColor: data.map(d => d.color + '80'),
-          borderColor: data.map(d => d.color),
-          borderWidth: 1,
-          borderRadius: 6,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y',
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: '#21262d' }, beginAtZero: true },
-          y: { grid: { display: false } },
-        },
-      },
-    });
-  }
+function renderWeekday(data) {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const counts = Array(7).fill(0);
+  data.forEach(d => { counts[+d.dow] = +d.count; });
+  const ctx = document.getElementById('weekday-chart').getContext('2d');
+  charts.weekday = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: days,
+      datasets: [{ label: 'Completions', data: counts, backgroundColor: 'rgba(99,102,241,0.2)', borderColor: '#6366f1', borderWidth: 2, pointBackgroundColor: '#6366f1', pointRadius: 4 }],
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { r: { grid: { color: '#1e2d45' }, pointLabels: { color: '#94a3b8', font: { size: 11 } }, ticks: { display: false }, beginAtZero: true } } },
+  });
+}
 
-  function renderWeekdayChart(data) {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const counts = Array(7).fill(0);
-    data.forEach(d => { counts[parseInt(d.dow)] = parseInt(d.count); });
+function renderCatTable(data) {
+  if (!data.length) { document.getElementById('cat-table').innerHTML = '<p class="text-sm text-2" style="padding:16px">No data yet</p>'; return; }
+  document.getElementById('cat-table').innerHTML = `
+    <table class="data-table">
+      <thead><tr>
+        <th>Category</th><th style="text-align:right">Total</th>
+        <th style="text-align:right">Done</th><th>Rate</th>
+      </tr></thead>
+      <tbody>${data.map(c => {
+        const r = c.count > 0 ? Math.round(c.completed / c.count * 100) : 0;
+        const col = r >= 70 ? 'var(--green)' : r >= 40 ? 'var(--yellow)' : 'var(--red)';
+        return `<tr>
+          <td><span style="display:inline-flex;align-items:center;gap:8px">
+            <span style="width:9px;height:9px;border-radius:50%;background:${c.color};display:inline-block"></span>
+            ${esc(c.name)}
+          </span></td>
+          <td style="text-align:right;font-family:var(--font-mono)">${c.count}</td>
+          <td style="text-align:right;font-family:var(--font-mono);color:var(--green)">${c.completed}</td>
+          <td style="min-width:120px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="progress-track" style="flex:1"><div class="progress-fill" style="width:${r}%;background:${col}"></div></div>
+              <span style="font-family:var(--font-mono);font-size:11px;color:${col};min-width:32px">${r}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
 
-    const ctx = document.getElementById('weekday-chart').getContext('2d');
-    charts.weekday = new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: days,
-        datasets: [{
-          label: 'Completions',
-          data: counts,
-          backgroundColor: 'rgba(240,136,62,0.2)',
-          borderColor: '#f0883e',
-          borderWidth: 2,
-          pointBackgroundColor: '#f0883e',
-          pointRadius: 4,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          r: {
-            grid: { color: '#30363d' },
-            pointLabels: { color: '#8b949e', font: { size: 12 } },
-            ticks: { display: false },
-            beginAtZero: true,
-          },
-        },
-      },
-    });
-  }
-
-  function renderCategoryTable(data) {
-    if (!data.length) { document.getElementById('category-table').innerHTML = '<p class="text-secondary text-sm" style="padding:16px">No data</p>'; return; }
-
-    document.getElementById('category-table').innerHTML = `
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:14px">
-          <thead>
-            <tr style="border-bottom:1px solid var(--border)">
-              <th style="text-align:left;padding:10px;color:var(--text-secondary);font-weight:600">Category</th>
-              <th style="text-align:right;padding:10px;color:var(--text-secondary);font-weight:600">Total</th>
-              <th style="text-align:right;padding:10px;color:var(--text-secondary);font-weight:600">Done</th>
-              <th style="padding:10px;color:var(--text-secondary);font-weight:600;min-width:120px">Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map(cat => {
-              const rate = cat.count > 0 ? Math.round(cat.completed / cat.count * 100) : 0;
-              return `
-                <tr style="border-bottom:1px solid var(--border-subtle)">
-                  <td style="padding:12px">
-                    <span style="display:inline-flex;align-items:center;gap:8px">
-                      <span style="width:10px;height:10px;border-radius:50%;background:${cat.color};display:inline-block"></span>
-                      ${cat.name}
-                    </span>
-                  </td>
-                  <td style="text-align:right;padding:12px;font-family:var(--font-mono)">${cat.count}</td>
-                  <td style="text-align:right;padding:12px;font-family:var(--font-mono);color:var(--green)">${cat.completed}</td>
-                  <td style="padding:12px">
-                    <div style="display:flex;align-items:center;gap:8px">
-                      <div class="progress-bar" style="flex:1">
-                        <div class="progress-fill" style="width:${rate}%;background:${cat.color}"></div>
-                      </div>
-                      <span style="font-family:var(--font-mono);font-size:12px;min-width:36px;text-align:right">${rate}%</span>
-                    </div>
-                  </td>
-                </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }
-
-  init();
+function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+init();
 </script>
 </body>
 </html>
