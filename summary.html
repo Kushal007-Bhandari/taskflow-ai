@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <title>TaskFlow — AI Summary</title>
+  <title>TaskFlow — AI</title>
   <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
 
 <header class="app-header">
   <button class="btn btn-ghost btn-icon" onclick="Drawer.open()"><span id="menu-icon"></span></button>
-  <div class="header-title">AI Summary</div>
+  <div class="header-title">AI Assistant</div>
   <div style="width:40px"></div>
 </header>
 
@@ -35,7 +35,7 @@
     <div class="drawer-section-label">Navigation</div>
     <a href="dashboard.html" class="drawer-nav-item"><span id="d-home"></span> Dashboard</a>
     <a href="analytics.html" class="drawer-nav-item"><span id="d-chart"></span> Analytics</a>
-    <a href="summary.html"   class="drawer-nav-item active"><span id="d-brain"></span> AI Summary</a>
+    <a href="summary.html" class="drawer-nav-item active"><span id="d-brain"></span> AI Summary</a>
   </nav>
   <div class="drawer-footer">
     <div class="drawer-user" onclick="Auth.logout()">
@@ -48,17 +48,17 @@
 
 <main class="app-main">
 
-  <!-- AI Hero Card -->
+  <!-- ── AI SUMMARY ───────────────────────────────────────── -->
   <div class="ai-hero">
     <div class="ai-hero-head">
       <div class="ai-icon-wrap"><span id="ai-icon"></span></div>
       <div>
         <div class="ai-hero-title">Productivity Summary</div>
-        <div class="ai-hero-sub">Mistral-7B · Powered by Hugging Face Inference API</div>
+        <div class="ai-hero-sub">Mistral-7B · Hugging Face · Personalized from your real data</div>
       </div>
     </div>
 
-    <!-- Range -->
+    <!-- Range tabs -->
     <div class="range-tabs" style="margin-bottom:16px">
       <button class="range-tab" data-days="7"   onclick="setRange(7)">7 Days</button>
       <button class="range-tab active" data-days="30" onclick="setRange(30)">30 Days</button>
@@ -81,87 +81,89 @@
         <span class="ai-mini-value" id="s-rate">—</span>
         <span class="ai-mini-label">Rate</span>
       </div>
+      <div class="ai-mini-stat">
+        <span class="ai-mini-value" id="s-overdue" style="color:var(--red)">—</span>
+        <span class="ai-mini-label">Overdue</span>
+      </div>
     </div>
 
+    <!-- Generate button -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-top:4px">
       <button class="btn btn-primary" id="gen-btn" onclick="generateSummary()">
         <span id="gen-icon"></span> Generate Summary
       </button>
-      <span class="text-xs text-3" id="model-status">Ready — ask me anything about your tasks!</span>
+      <span class="text-xs text-3" id="model-status">Ready — powered by Mistral-7B</span>
     </div>
 
     <!-- Output -->
     <div class="ai-output" id="ai-output">
-      <span class="text-2 text-sm">Click "Generate Summary" to get your AI-powered productivity insights. </span>
+      <span class="text-2 text-sm">Click "Generate Summary" to get a personal AI-powered productivity insight based on your actual tasks, categories, and patterns.</span>
     </div>
   </div>
 
-  <!-- Monthly History -->
+  <!-- ── AI CHAT ───────────────────────────────────────────── -->
+  <div class="card" style="margin-top:0">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span id="chat-header-icon" style="color:var(--accent-2)"></span>
+      <div>
+        <div class="card-title" style="margin:0">Chat with your AI</div>
+        <div class="card-sub" style="margin:0">Ask anything — answers based only on your real tasks</div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="chat-messages" style="min-height:120px;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px;background:var(--bg-2,var(--card-bg))">
+      <div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--text-1)">
+        <span style="color:var(--accent-2);flex-shrink:0;margin-top:1px" id="chat-welcome-icon"></span>
+        <span style="line-height:1.6">Hi! I can answer questions about your tasks. Try: <em>"What's overdue?"</em>, <em>"What should I focus on?"</em>, or <em>"How am I doing?"</em></span>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div style="display:flex;gap:8px">
+      <input id="chat-input" type="text" class="form-input" placeholder="Ask about your tasks..." style="flex:1;height:44px" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" autocomplete="off"/>
+      <button class="btn btn-primary" id="chat-send-btn" onclick="sendChat()" style="height:44px;padding:0 16px">
+        <span id="chat-send-icon"></span>
+      </button>
+    </div>
+
+    <!-- Quick chips -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+      <button class="chip" onclick="askQuick('What tasks are overdue?')">Overdue</button>
+      <button class="chip" onclick="askQuick('What should I focus on today?')">Focus today</button>
+      <button class="chip" onclick="askQuick('Show my high priority tasks')">High priority</button>
+      <button class="chip" onclick="askQuick('How is my completion rate?')">My rate</button>
+      <button class="chip" onclick="askQuick('What did I complete recently?')">Completed</button>
+      <button class="chip" onclick="askQuick('hi')">Say hi 👋</button>
+    </div>
+  </div>
+
+  <!-- ── MONTHLY HISTORY ───────────────────────────────────── -->
   <div class="card">
     <div class="card-title">Monthly History</div>
     <div class="card-sub">Performance over the last 12 months</div>
     <div class="overflow-x" id="monthly-table"></div>
   </div>
 
-  <!-- Recent completions -->
+  <!-- ── RECENT COMPLETIONS ────────────────────────────────── -->
   <div class="card">
     <div class="card-title" id="recent-title">Recent Completions</div>
     <div class="card-sub">Tasks you finished in this period</div>
     <div id="recent-list"></div>
   </div>
 
-
-  <!-- ── AI Chat ──────────────────────────────────────────── -->
-  <div class="card" style="margin-top:0">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-      <span id="chat-header-icon"></span>
-      <div>
-        <div class="card-title" style="margin:0">Chat with your AI</div>
-        <div class="card-sub" style="margin:0">Ask anything about your tasks — answers based only on your real data</div>
-      </div>
-    </div>
-
-    <!-- Messages container -->
-    <div id="chat-messages" style="
-      min-height:140px;max-height:420px;overflow-y:auto;
-      border:1px solid var(--border);border-radius:12px;
-      padding:14px;margin-bottom:12px;
-      display:flex;flex-direction:column;gap:10px;
-      background:var(--bg-2)
-    ">
-      <div class="chat-msg chat-ai" id="chat-welcome">
-        <span id="chat-welcome-icon"></span>
-        <span>Hi! I can answer questions about your tasks. Try asking: <em>"What's overdue?"</em>, <em>"What should I focus on today?"</em>, or <em>"Show my high-priority tasks."</em></span>
-      </div>
-    </div>
-
-    <!-- Input row -->
-    <div style="display:flex;gap:8px">
-      <input
-        id="chat-input"
-        type="text"
-        class="form-input"
-        placeholder="Ask about your tasks..."
-        style="flex:1;height:44px"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"
-        autocomplete="off"
-      />
-      <button class="btn btn-primary" id="chat-send-btn" onclick="sendChat()" style="height:44px;padding:0 18px">
-        <span id="chat-send-icon"></span>
-      </button>
-    </div>
-
-    <!-- Quick prompts -->
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
-      <button class="chip" onclick="askQuick('What tasks are overdue?')">Overdue tasks</button>
-      <button class="chip" onclick="askQuick('What should I focus on today?')">Focus today</button>
-      <button class="chip" onclick="askQuick('Show my pending high-priority tasks')">High priority</button>
-      <button class="chip" onclick="askQuick('How is my completion rate?')">My rate</button>
-      <button class="chip" onclick="askQuick('What tasks did I complete recently?')">Completed</button>
-    </div>
-  </div>
-
 </main>
+
+<style>
+.chat-bubble-ai   { background:var(--bg-3,var(--card-bg)); border:1px solid var(--border); border-radius:14px; border-top-left-radius:4px; padding:9px 13px; font-size:13px; line-height:1.6; max-width:92%; }
+.chat-bubble-user { background:var(--accent); color:#fff; border-radius:14px; border-top-right-radius:4px; padding:9px 13px; font-size:13px; line-height:1.6; max-width:92%; }
+.chat-row-ai      { display:flex; gap:8px; align-items:flex-start; }
+.chat-row-user    { display:flex; gap:8px; align-items:flex-start; flex-direction:row-reverse; align-self:flex-end; width:100%; }
+.typing span      { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--text-3); margin:0 2px; animation:bounce 1.2s infinite; }
+.typing span:nth-child(2){ animation-delay:.2s; }
+.typing span:nth-child(3){ animation-delay:.4s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+</style>
 
 <script src="js/config.js"></script>
 <script src="js/icons.js"></script>
@@ -171,39 +173,47 @@
 <script src="js/ai.js"></script>
 <script>
 let currentRange = 30;
-let statsData = null;
+let statsData    = null;
+let chatHistory  = [];
+let userName     = '';
 
 async function init() {
   injectIcons();
   const user = await Auth.requireAuth();
   if (!user) return;
+  userName = user.name || '';
   populateSidebarUser();
   await loadData();
 }
 
 function injectIcons() {
-  document.getElementById('menu-icon').innerHTML    = Icons.menu(20);
-  document.getElementById('nav-home').innerHTML     = Icons.home(22);
-  document.getElementById('nav-chart').innerHTML    = Icons.chart(22);
-  document.getElementById('nav-plus').innerHTML     = Icons.plus(24);
-  document.getElementById('nav-brain').innerHTML    = Icons.brain(22);
-  document.getElementById('nav-list').innerHTML     = Icons.list(22);
-  document.getElementById('drawer-check').innerHTML = Icons.check(18);
-  document.getElementById('drawer-close').innerHTML = Icons.x(18);
-  document.getElementById('d-home').innerHTML       = Icons.home(18);
-  document.getElementById('d-chart').innerHTML      = Icons.chart(18);
-  document.getElementById('d-brain').innerHTML      = Icons.brain(18);
-  document.getElementById('d-logout').innerHTML     = Icons.logout(16);
-  document.getElementById('ai-icon').innerHTML      = Icons.sparkles(26);
-  document.getElementById('gen-icon').innerHTML     = Icons.sparkles(16);
+  document.getElementById('menu-icon').innerHTML        = Icons.menu(20);
+  document.getElementById('nav-home').innerHTML         = Icons.home(22);
+  document.getElementById('nav-chart').innerHTML        = Icons.chart(22);
+  document.getElementById('nav-plus').innerHTML         = Icons.plus(24);
+  document.getElementById('nav-brain').innerHTML        = Icons.brain(22);
+  document.getElementById('nav-list').innerHTML         = Icons.list(22);
+  document.getElementById('drawer-check').innerHTML     = Icons.check(18);
+  document.getElementById('drawer-close').innerHTML     = Icons.x(18);
+  document.getElementById('d-home').innerHTML           = Icons.home(18);
+  document.getElementById('d-chart').innerHTML          = Icons.chart(18);
+  document.getElementById('d-brain').innerHTML          = Icons.brain(18);
+  document.getElementById('d-logout').innerHTML         = Icons.logout(16);
+  document.getElementById('ai-icon').innerHTML          = Icons.sparkles(26);
+  document.getElementById('gen-icon').innerHTML         = Icons.sparkles(16);
+  document.getElementById('chat-header-icon').innerHTML = Icons.brain(22);
+  document.getElementById('chat-welcome-icon').innerHTML= Icons.sparkles(14);
+  document.getElementById('chat-send-icon').innerHTML   = Icons.trending(18);
 }
 
 async function loadData() {
   try {
     statsData = await TodoAPI.getStats(currentRange);
+    statsData.range = currentRange;
     const o = statsData.overview;
-    document.getElementById('s-created').textContent   = o.recent_total || 0;
+    document.getElementById('s-created').textContent   = o.recent_total     || 0;
     document.getElementById('s-completed').textContent = o.recent_completed || 0;
+    document.getElementById('s-overdue').textContent   = o.overdue          || 0;
     const rate = o.recent_total > 0 ? Math.round(o.recent_completed / o.recent_total * 100) : 0;
     document.getElementById('s-rate').textContent = rate + '%';
     renderMonthly(statsData.monthlySummary);
@@ -228,47 +238,32 @@ async function generateSummary() {
 
   btn.disabled = true;
   btn.innerHTML = `<span class="spinner"></span> Generating...`;
-
-  output.innerHTML = `<div class="ai-loading">
-    <div class="dot-pulse"><span></span><span></span><span></span></div>
-    <span id="ai-progress">Initializing AI model...</span>
-  </div>`;
+  output.innerHTML = `<div class="ai-loading"><div class="dot-pulse"><span></span><span></span><span></span></div><span id="ai-progress">Preparing your data...</span></div>`;
 
   try {
-    const userName = document.querySelector('[data-user-name]')?.textContent?.trim() || '';
     const summary = await AI.summarize(
       statsData.recentTodos,
-      {
-        total:     parseInt(statsData.overview.recent_total)     || 0,
-        completed: parseInt(statsData.overview.recent_completed) || 0,
-        overdue:   parseInt(statsData.overview.overdue)          || 0,
-      },
+      { total: parseInt(statsData.overview.recent_total)||0, completed: parseInt(statsData.overview.recent_completed)||0, overdue: parseInt(statsData.overview.overdue)||0 },
       currentRange,
-      (msg) => {
-        const el = document.getElementById('ai-progress');
-        if (el) el.textContent = msg;
-        status.textContent = msg;
-      },
+      (msg) => { const el=document.getElementById('ai-progress'); if(el) el.textContent=msg; status.textContent=msg; },
       statsData,
       userName
     );
 
     output.classList.add('has-content');
     output.innerHTML = `
-      <p style="line-height:1.8">${summary}</p>
+      <p style="line-height:1.8">${esc(summary)}</p>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-3)">
-        ${Icons.sparkles(12)} Generated by Mistral-7B via Hugging Face API &nbsp;·&nbsp; ${new Date().toLocaleString()}
+        ${Icons.sparkles(12)} Mistral-7B via Hugging Face &nbsp;·&nbsp; ${new Date().toLocaleString()}
       </div>`;
-
     status.textContent = 'Summary ready';
     Toast.success('AI summary generated!');
   } catch(e) {
-    const errMsg = e.message || '';
-    if (errMsg.includes('503') || errMsg.includes('retry')) {
-      output.innerHTML = `<span style="color:var(--yellow);font-size:13px">⏳ AI model is warming up — please wait 20 seconds and try again.</span>`;
+    if (e.message === '503') {
+      output.innerHTML = `<span style="color:var(--yellow);font-size:13px">⏳ AI model is warming up — wait 20 seconds and try again.</span>`;
       status.textContent = 'Model loading...';
     } else {
-      output.innerHTML = `<span style="color:var(--red);font-size:13px">${errMsg || 'Generation failed. Please try again.'}</span>`;
+      output.innerHTML = `<span style="color:var(--red);font-size:13px">${e.message || 'Generation failed. Please try again.'}</span>`;
       status.textContent = 'Error — try again';
     }
   } finally {
@@ -277,16 +272,66 @@ async function generateSummary() {
   }
 }
 
+// ── Chat ──────────────────────────────────────────────────────
+function appendMsg(role, text) {
+  const box  = document.getElementById('chat-messages');
+  const isAI = role === 'ai';
+  const row  = document.createElement('div');
+  row.className = isAI ? 'chat-row-ai' : 'chat-row-user';
+  row.innerHTML = isAI
+    ? `<span style="color:var(--accent-2);flex-shrink:0;margin-top:2px">${Icons.sparkles(13)}</span><div class="chat-bubble-ai">${esc(text)}</div>`
+    : `<div class="chat-bubble-user">${esc(text)}</div>`;
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
+}
+
+function showTyping() {
+  const box = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.id = 'chat-typing';
+  div.className = 'chat-row-ai';
+  div.innerHTML = `<span style="color:var(--accent-2);flex-shrink:0;margin-top:2px">${Icons.sparkles(13)}</span><div class="chat-bubble-ai typing"><span></span><span></span><span></span></div>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function hideTyping() { document.getElementById('chat-typing')?.remove(); }
+
+function askQuick(q) { document.getElementById('chat-input').value = q; sendChat(); }
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const btn   = document.getElementById('chat-send-btn');
+  const msg   = input.value.trim();
+  if (!msg || btn.disabled) return;
+  input.value = '';
+  btn.disabled = true;
+  appendMsg('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+  showTyping();
+  try {
+    if (!statsData) await loadData();
+    statsData.range = currentRange;
+    const reply = await AI.chat(msg, chatHistory, statsData, userName);
+    hideTyping();
+    appendMsg('ai', reply);
+    chatHistory.push({ role: 'assistant', content: reply });
+    if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
+  } catch(e) {
+    hideTyping();
+    appendMsg('ai', 'Sorry, I had trouble with that. Try again!');
+  }
+  btn.disabled = false;
+  input.focus();
+}
+
 function renderMonthly(months) {
   const el = document.getElementById('monthly-table');
   if (!months?.length) { el.innerHTML = '<p class="text-sm text-2" style="padding:12px">No monthly data yet.</p>'; return; }
   el.innerHTML = `<table class="data-table">
-    <thead><tr>
-      <th>Month</th><th style="text-align:right">Created</th>
-      <th style="text-align:right">Done</th><th>Rate</th>
-    </tr></thead>
+    <thead><tr><th>Month</th><th style="text-align:right">Created</th><th style="text-align:right">Done</th><th>Rate</th></tr></thead>
     <tbody>${months.map(m => {
-      const r = m.completion_rate || 0;
+      const r   = m.completion_rate || 0;
       const col = r >= 70 ? 'var(--green)' : r >= 40 ? 'var(--yellow)' : 'var(--red)';
       return `<tr>
         <td style="font-weight:600;font-size:13px">${m.month}</td>
@@ -299,15 +344,14 @@ function renderMonthly(months) {
           </div>
         </td>
       </tr>`;
-    }).join('')}</tbody>
-  </table>`;
+    }).join('')}</tbody></table>`;
 }
 
 function renderRecent(todos) {
   document.getElementById('recent-title').textContent = `Recent Completions (Last ${currentRange} days)`;
   const el = document.getElementById('recent-list');
   if (!todos?.length) { el.innerHTML = '<p class="text-sm text-2" style="padding:12px">No completed tasks in this period.</p>'; return; }
-  el.innerHTML = todos.slice(0, 20).map(t => `
+  el.innerHTML = todos.slice(0,20).map(t => `
     <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
       <span style="color:var(--green);flex-shrink:0">${Icons.circle_check(18)}</span>
       <div style="flex:1;min-width:0">
@@ -320,148 +364,6 @@ function renderRecent(todos) {
 
 function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
 init();
-</script>
-
-<style>
-.chat-msg {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  font-size: 13.5px;
-  line-height: 1.6;
-  max-width: 92%;
-}
-.chat-ai {
-  color: var(--text-1);
-}
-.chat-user {
-  align-self: flex-end;
-  flex-direction: row-reverse;
-  color: var(--text-1);
-}
-.chat-bubble {
-  padding: 9px 13px;
-  border-radius: 14px;
-  max-width: 100%;
-}
-.chat-ai .chat-bubble {
-  background: var(--bg-3, var(--card-bg));
-  border: 1px solid var(--border);
-  border-top-left-radius: 4px;
-}
-.chat-user .chat-bubble {
-  background: var(--accent);
-  color: #fff;
-  border-top-right-radius: 4px;
-}
-.chat-typing span {
-  display: inline-block;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--text-3);
-  margin: 0 2px;
-  animation: bounce 1.2s infinite;
-}
-.chat-typing span:nth-child(2) { animation-delay: .2s; }
-.chat-typing span:nth-child(3) { animation-delay: .4s; }
-@keyframes bounce {
-  0%,80%,100% { transform: translateY(0); }
-  40% { transform: translateY(-6px); }
-}
-</style>
-
-<script>
-let chatHistory = [];
-
-function injectChatIcons() {
-  const el1 = document.getElementById('chat-header-icon');
-  const el2 = document.getElementById('chat-welcome-icon');
-  const el3 = document.getElementById('chat-send-icon');
-  if (el1) el1.innerHTML = Icons.brain(22);
-  if (el2) el2.innerHTML = Icons.sparkles(15);
-  if (el3) el3.innerHTML = Icons.send ? Icons.send(18) : Icons.sparkles(18);
-}
-
-function appendMsg(role, text) {
-  const box   = document.getElementById('chat-messages');
-  const isAI  = role === 'ai';
-  const div   = document.createElement('div');
-  div.className = `chat-msg chat-${isAI ? 'ai' : 'user'}`;
-  div.innerHTML  = `
-    ${isAI ? `<span style="flex-shrink:0;margin-top:2px;color:var(--accent-2)">${Icons.sparkles(14)}</span>` : ''}
-    <div class="chat-bubble">${esc(text)}</div>`;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-  return div;
-}
-
-function showTyping() {
-  const box  = document.getElementById('chat-messages');
-  const div  = document.createElement('div');
-  div.id     = 'chat-typing';
-  div.className = 'chat-msg chat-ai';
-  div.innerHTML  = `
-    <span style="flex-shrink:0;margin-top:2px;color:var(--accent-2)">${Icons.sparkles(14)}</span>
-    <div class="chat-bubble chat-typing"><span></span><span></span><span></span></div>`;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-}
-
-function hideTyping() {
-  document.getElementById('chat-typing')?.remove();
-}
-
-function askQuick(q) {
-  document.getElementById('chat-input').value = q;
-  sendChat();
-}
-
-async function sendChat() {
-  const input = document.getElementById('chat-input');
-  const btn   = document.getElementById('chat-send-btn');
-  const msg   = input.value.trim();
-  if (!msg || btn.disabled) return;
-
-  input.value = '';
-  btn.disabled = true;
-
-  appendMsg('user', msg);
-  chatHistory.push({ role: 'user', content: msg });
-
-  showTyping();
-
-  try {
-    const userName = document.querySelector('[data-user-name]')?.textContent?.trim() || '';
-    const allTodos = statsData?.allTodosForAI || statsData?.recentTodos || [];
-    const reply = await AI.chat(msg, chatHistory, statsData, allTodos, userName);
-    hideTyping();
-    appendMsg('ai', reply);
-    chatHistory.push({ role: 'assistant', content: reply });
-    if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
-  } catch(e) {
-    hideTyping();
-    // Show a friendly error but still try offline fallback
-    const userName = document.querySelector('[data-user-name]')?.textContent?.trim() || '';
-    const allTodos = statsData?.allTodosForAI || statsData?.recentTodos || [];
-    const ctx = AI.buildContext(statsData, allTodos, userName, statsData?.range || currentRange);
-    appendMsg('ai', AI._fallbackChat(msg, ctx));
-  }
-
-  btn.disabled = false;
-  input.focus();
-}
-
-function esc(s) {
-  const d = document.createElement('div');
-  d.textContent = s || '';
-  return d.innerHTML;
-}
-
-// Inject chat icons after main init
-const _origInit = typeof init === 'function' ? init : null;
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(injectChatIcons, 100);
-});
 </script>
 </body>
 </html>
