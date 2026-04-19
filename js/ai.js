@@ -137,10 +137,13 @@ ${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name}: ${userMessage} [/INST
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.getToken()}` },
         body: JSON.stringify({ prompt, mode: 'chat', context, name, userMessage }),
       });
-      if (!res.ok) throw new Error('API error');
       const data = await res.json();
-      if (!data.summary) throw new Error('Empty');
-      return data.summary;
+      // If AI returned a real response, use it
+      if (data.summary && data.summary.length > 10) return data.summary;
+      // If model is loading (503) tell the user
+      if (res.status === 503 || data.retry) return '⏳ The AI model is warming up — please try again in about 20 seconds!';
+      // If empty response, fall back
+      throw new Error('No response');
     } catch(err) {
       return AI._fallbackChat(userMessage, ctx);
     }
@@ -230,12 +233,13 @@ ${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name}: ${userMessage} [/INST
       if (!cats.length) return `No category data available yet.`;
       return `Category breakdown: ${cats.map(c=>`${c.name}: ${c.done}/${c.total} (${c.rate}%)`).join(', ')}.`;
     }
-    // Search for specific task
+    // Search for specific task by name
     const found = [...doneTasks,...openTasks].find(t => t.title?.toLowerCase().includes(q));
     if (found) {
       const desc = found.description?.trim();
       return `"${found.title}": ${desc||'No description.'} Status: ${found.status}, Priority: ${found.priority}${found.due_date?`, Due: ${String(found.due_date).split('T')[0]}`:''}`;
     }
-    return `${name}, you have ${total} tasks ${rangeLabel} with ${rate}% completion. Try: "What's overdue?", "What should I focus on?", "Show high priority tasks", or "How am I doing?"`;
+    // General question — AI API is offline, give honest response
+    return `I'm a productivity assistant for ${name}. My AI model is currently warming up so I can only answer task-related questions right now. Try asking: "What's overdue?", "What should I focus on?", "How am I doing?", or "Show my pending tasks." For general questions, please try again in a moment when the AI model is ready.`;
   },
 };
