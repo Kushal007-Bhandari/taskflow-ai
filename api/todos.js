@@ -1,0 +1,124 @@
+// api/todos.js - FIXED
+import { neon } from '@neondatabase/serverless';
+
+export default async function handler(req, res_obj) {
+  if (req.method === 'OPTIONS') { setCors(res_obj); return res_obj.status(200).end(); }
+
+  const sql = neon(process.env.DATABASE_URL);
+
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res(401, { error: 'Unauthorized' });
+
+  const [session] = await sql`
+    SELECT user_id FROM sessions WHERE token = ${token} AND expires_at > NOW()
+  `;
+  if (!session) return res(401, { error: 'Invalid or expired session' });
+
+  const userId = session.user_id;
+  const params = req.query || {};
+  const body = req.body || {};
+
+  try {
+
+    // GET ALL TODOS
+    if (req.method === 'GET' && !params.id) {
+      let todos = await sql`
+        SELECT t.*,
+          c.name as category_name,
+          c.color as category_color,
+          c.icon as category_icon
+        FROM todos t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ${userId}
+        ORDER BY
+          CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END,
+          CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
+          t.due_date ASC NULLS LAST,
+          t.created_at DESC
+      `;
+      // Filter in JS - clean and reliable
+      if (params.status)      todos = todos.filter(t => t.status === params.status);
+      if (params.priority)    todos = todos.filter(t => t.priority === params.priority);
+      if (params.category_id) todos = todos.filter(t => t.category_id === params.category_id);
+      if (params.search)      todos = todos.filter(t => t.title.toLowerCase().includes(params.search.toLowerCase()));
+      return res(200, { todos });
+    }
+
+    // GET SINGLE TODO
+    if (req.method === 'GET' && params.id) {
+      const [todo] = await sql`
+        SELECT t.*, c.name as category_name, c.color as category_color
+        FROM todos t LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.id = ${params.id} AND t.user_id = ${userId}
+      `;
+      if (!todo) return res(404, { error: 'Todo not found' });
+      return res(200, { todo });
+    }
+
+    // CREATE TODO
+    if (req.method === 'POST') {
+      const { title, description, category_id, priority, due_date, tags } = body;
+      if (!title?.trim()) return res(400, { error: 'Title is required' });
+      const [todo] = await sql`
+        INSERT INTO todos (user_id, title, description, category_id, priority, due_date, tags)
+        VALUES (${userId}, ${title.trim()}, ${description || ''}, ${category_id || null}, ${priority || 'medium'}, ${due_date || null}, ${tags || []})
+        RETURNING *
+      `;
+      return res(201, { todo });
+    }
+
+    // UPDATE TODO
+    if (req.method === 'PUT') {
+      const { id, title, description, category_id, priority, status, due_date, tags } = body;
+      if (!id) return res(400, { error: 'Todo ID required' });
+      const [current] = await sql`SELECT * FROM todos WHERE id = ${id} AND user_id = ${userId}`;
+      if (!current) return res(404, { error: 'Todo not found' });
+
+      const newTitle      = title       !== undefined ? title.trim()         : current.title;
+      const newDesc       = description !== undefined ? description           : current.description;
+      const newCatId      = category_id !== undefined ? (category_id || null) : current.category_id;
+      const newPriority   = priority    !== undefined ? priority              : current.priority;
+      const newStatus     = status      !== undefined ? status                : current.status;
+      const newDueDate    = due_date    !== undefined ? (due_date || null)    : current.due_date;
+      const newTags       = tags        !== undefined ? tags                  : current.tags;
+
+      let completedAt = current.completed_at;
+      if (newStatus === 'completed' && !current.completed_at) completedAt = new Date().toISOString();
+      else if (newStatus !== 'completed') completedAt = null;
+
+      const [todo] = await sql`
+        UPDATE todos SET
+          title = ${newTitle}, description = ${newDesc}, category_id = ${newCatId},
+          priority = ${newPriority}, status = ${newStatus}, due_date = ${newDueDate},
+          tags = ${newTags}, completed_at = ${completedAt}
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING *
+      `;
+      return res(200, { todo });
+    }
+
+    // DELETE TODO
+    if (req.method === 'DELETE') {
+      const { id } = body;
+      if (!id) return res(400, { error: 'Todo ID required' });
+      await sql`DELETE FROM todos WHERE id = ${id} AND user_id = ${userId}`;
+      return res(200, { message: 'Deleted' });
+    }
+
+    return res(405, { error: 'Method not allowed' });
+  } catch (err) {
+    console.error('Todos error:', err);
+    return res(500, { error: err.message || 'Server error' });
+  }
+};
+
+function res(status, body) {
+  setCors(res_obj);
+  return res_obj.status(status).json(body);
+}
+
+function setCors(r) {
+  r.setHeader('Access-Control-Allow-Origin', '*');
+  r.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  r.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+}

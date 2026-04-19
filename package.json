@@ -2,8 +2,9 @@
   "name": "taskflow-ai",
   "version": "1.0.0",
   "description": "Advanced AI-powered Todo App - BCA Project II",
+  "type": "module",
   "scripts": {
-    "dev": "netlify dev"
+    "dev": "vercel dev"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
