@@ -105,10 +105,17 @@ export default async function handler(req, res) {
 
     const recentTodos = allTodosForAI.filter(t => t.status === 'completed');
 
+    // Normalize date fields to YYYY-MM-DD strings so they match frontend DateUtils
+    const normDate = (d) => d.date ? String(d.date).split('T')[0] : d.date;
+    const dailyCompletionsFixed = dailyCompletions.map(d => ({ ...d, date: normDate(d) }));
+    const dailyCreatedFixed     = dailyCreated.map(d     => ({ ...d, date: normDate(d) }));
+
     return res.status(200).json({
-      overview, dailyCompletions, dailyCreated, priorityBreakdown,
-      categoryBreakdown, byDayOfWeek, monthlySummary,
-      recentTodos, allTodosForAI, range: days,
+      overview,
+      dailyCompletions: dailyCompletionsFixed,
+      dailyCreated:     dailyCreatedFixed,
+      priorityBreakdown, categoryBreakdown, byDayOfWeek,
+      monthlySummary, recentTodos, allTodosForAI, range: days,
     });
 
   } catch (err) {
