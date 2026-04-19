@@ -117,12 +117,19 @@ Write ${name}'s productivity message now: [/INST]`;
       m.role === 'user' ? `${name}: ${m.content}` : `Assistant: ${m.content}`
     ).join('\n');
 
-    const prompt = `<s>[INST] You are a helpful productivity assistant for ${name}. Answer using ONLY the task data below. Be specific and friendly. For greetings give a quick friendly summary. If asked something not in the data, say so honestly.
+    const prompt = `<s>[INST] You are a smart, friendly personal assistant for ${name}. You have access to their task and productivity data below. You can:
+- Answer questions about their tasks, progress, and productivity
+- Give productivity advice and motivation
+- Have normal friendly conversations
+- Help them think through problems
+- Answer general questions
 
-TASK DATA:
+Be warm, natural, and conversational — like a knowledgeable friend. Use their task data when relevant, but don't limit yourself to only that. Keep responses concise.
+
+${name}'s TASK DATA:
 ${context}
 
-${turns ? `CONVERSATION:\n${turns}\n` : ''}${name} says: ${userMessage} [/INST]`;
+${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name}: ${userMessage} [/INST]`;
 
     try {
       const res = await fetch('/api/ai-summary', {
