@@ -118,11 +118,41 @@
   </div>
 
   <!-- Smart Focus Button -->
-  <div style="margin-bottom:14px">
-    <button class="btn btn-primary" id="smart-focus-btn" onclick="toggleSmartFocus()" style="width:100%;justify-content:center;gap:10px;height:46px;font-size:14px">
+  <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center">
+    <button class="btn btn-primary" id="smart-focus-btn" onclick="toggleSmartFocus()" style="flex:1;justify-content:center;gap:10px;height:46px;font-size:14px">
       <span id="focus-btn-icon"></span>
       <span id="focus-btn-label">⚡ Smart Focus</span>
     </button>
+    <button class="btn btn-ghost btn-icon" onclick="toggleAlgoInfo()" id="algo-info-btn" aria-label="How scoring works" style="height:46px;width:46px;border:1.5px solid var(--border);border-radius:12px;flex-shrink:0;font-size:15px;font-weight:700;color:var(--text-2)">i</button>
+  </div>
+
+  <!-- Algorithm Info Tooltip -->
+  <div id="algo-info-panel" style="display:none;margin-top:-8px;margin-bottom:14px">
+    <div class="card" style="padding:14px 16px;border:1.5px solid var(--accent);background:var(--accent-bg)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:600;color:var(--accent-2)">How Smart Focus works</span>
+        <button onclick="toggleAlgoInfo()" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:16px;padding:0;line-height:1">×</button>
+      </div>
+      <p style="font-size:12.5px;color:var(--text-2);margin-bottom:10px;line-height:1.6">Each pending task gets a <strong>score</strong> based on 3 factors. The highest scored task is ranked first.</p>
+      <div style="background:var(--bg-2,var(--card-bg));border-radius:8px;padding:10px 12px;font-family:var(--font-mono);font-size:12px;color:var(--text-1);margin-bottom:10px;line-height:1.8">
+        Score = (Priority × 3) + (Overdue Days × 2) + (Age × 0.5)
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+          <span style="background:var(--red-bg);color:var(--red);padding:1px 7px;border-radius:6px;font-weight:600;flex-shrink:0">Priority</span>
+          <span style="color:var(--text-2)">High = 9pts &nbsp;·&nbsp; Medium = 6pts &nbsp;·&nbsp; Low = 3pts</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+          <span style="background:var(--accent-bg);color:var(--accent-2);padding:1px 7px;border-radius:6px;font-weight:600;flex-shrink:0">Overdue</span>
+          <span style="color:var(--text-2)">Each day past due date adds 2pts (3 days overdue = +6pts)</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;font-size:12px">
+          <span style="background:var(--green-bg);color:var(--green);padding:1px 7px;border-radius:6px;font-weight:600;flex-shrink:0">Age</span>
+          <span style="color:var(--text-2)">Each day since created adds 0.5pts (capped at 5pts so old tasks don't dominate)</span>
+        </div>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-3);margin-top:10px;line-height:1.5">Example: High priority task, 3 days overdue, created 8 days ago → 9 + 6 + 4 = <strong style="color:var(--accent-2)">19 pts</strong></p>
+    </div>
   </div>
 
   <!-- Smart Focus Panel (hidden until button clicked) -->
@@ -631,6 +661,11 @@ function setupListeners() {
   document.getElementById('search-input').addEventListener('input', debounce(e => {
     filters.search = e.target.value; loadTodos();
   }, 400));
+}
+
+function toggleAlgoInfo() {
+  const panel = document.getElementById('algo-info-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
 init();
