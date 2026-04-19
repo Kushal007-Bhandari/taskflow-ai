@@ -1,4 +1,4 @@
-// api/ai-summary.js
+// api/ai-summary.js — uses Groq (Llama 3.3 70B) instead of Hugging Face
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -7,69 +7,73 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const HF_TOKEN = process.env.HF_TOKEN;
-  if (!HF_TOKEN) return res.status(200).json({ summary: 'AI unavailable: HF_TOKEN not set.', source: 'no-token' });
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  if (!GROQ_KEY) return res.status(200).json({ summary: null, source: 'no-key' });
 
   try {
-    const { prompt, mode = 'summary' } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: 'No prompt provided' });
+    const { mode = 'summary', context, name, userMessage } = req.body || {};
 
-    // Chat needs more tokens and slightly higher temp for natural conversation
     const isChat = mode === 'chat';
 
-    const hfRes = await fetch(
-      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${HF_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            max_new_tokens:     isChat ? 300  : 280,
-            temperature:        isChat ? 0.8  : 0.72,
-            top_p:              isChat ? 0.95 : 0.92,
-            repetition_penalty: 1.1,
-            do_sample:          true,
-            return_full_text:   false,
-          },
-        }),
-      }
-    );
+    // Build clean messages for Groq's chat format
+    const systemPrompt = isChat
+      ? `You are a smart, friendly personal assistant for ${name}. You have access to their task data below. Answer naturally and conversationally — like a knowledgeable friend. You can discuss anything, not just tasks. Use their task data when relevant.
 
-    if (!hfRes.ok) {
-      const errBody = await hfRes.text();
-      console.error(`HF ${hfRes.status}:`, errBody.slice(0, 200));
-      if (hfRes.status === 503) return res.status(503).json({ error: 'Model loading, retry in 20s', retry: true });
-      // For other errors still return something useful
-      return res.status(200).json({ summary: null, source: 'error', error: `HF ${hfRes.status}` });
+TASK DATA:
+${context}`
+      : `You are ${name}'s personal productivity coach. Write a warm, personal 4-5 sentence productivity message using ONLY the task data below. Mention ${name} by name, reference 2-3 actual task titles in quotes, use real numbers, and give 1 specific actionable tip. Sound like a supportive friend, not a robot.
+
+TASK DATA:
+${context}`;
+
+    const userContent = isChat ? userMessage : `Write ${name}'s productivity summary now.`;
+
+    // Include conversation history for chat
+    const history = (req.body?.history || []).slice(-8).map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.content,
+    }));
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content: userContent },
+    ];
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages,
+        max_tokens:  isChat ? 400 : 300,
+        temperature: isChat ? 0.8 : 0.75,
+        top_p: 0.92,
+      }),
+    });
+
+    if (!groqRes.ok) {
+      const err = await groqRes.text();
+      console.error('Groq error:', groqRes.status, err.slice(0, 200));
+      return res.status(200).json({ summary: null, source: 'groq-error', code: groqRes.status });
     }
 
-    const hfData = await hfRes.json();
-    let text = Array.isArray(hfData)
-      ? (hfData[0]?.generated_text || '')
-      : (hfData.generated_text || '');
+    const data = await groqRes.json();
+    const text = data.choices?.[0]?.message?.content?.trim() || '';
 
-    // Clean up artifacts
-    text = text
-      .replace(/\[INST\][\s\S]*?\[\/INST\]/g, '')
-      .replace(/<s>|<\/s>|\[\/INST\]/g, '')
-      .replace(/^(Sure[!,.]?\s*|Certainly[!,.]?\s*|Of course[!,.]?\s*|Absolutely[!,.]?\s*)/i, '')
-      .replace(/^(Here'?(?:s| is)(?: your)?[^:\n]*:\s*)/i, '')
-      .replace(/^(Assistant:\s*)/i, '')
-      .split('\n').map(l => l.trim()).filter(Boolean).join(' ')
-      .trim();
+    console.log(`[${mode}] Groq response: ${text.length} chars`);
 
     if (!text || text.length < 10) {
       return res.status(200).json({ summary: null, source: 'empty' });
     }
 
-    return res.status(200).json({ summary: text, source: 'mistral-7b' });
+    return res.status(200).json({ summary: text, source: 'groq-llama3' });
 
   } catch (err) {
     console.error('ai-summary error:', err.message);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message, summary: null });
   }
 }

@@ -91,20 +91,22 @@ Write ${name}'s productivity message now: [/INST]`;
       const res = await fetch('/api/ai-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.getToken()}` },
-        body: JSON.stringify({ prompt, mode: 'summary', context, name, ...AI._extras(ctx) }),
+        body: JSON.stringify({ mode: 'summary', context, name, ...AI._extras(ctx) }),
       });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        if (res.status === 503) throw new Error('503');
-        throw new Error(d.error || 'API error');
+      const data = await res.json().catch(() => ({}));
+      // Mistral returned a real response
+      if (data.summary && data.summary.length > 20) {
+        return { text: data.summary, source: 'mistral-7b' };
       }
-      const data = await res.json();
-      if (!data.summary) throw new Error('Empty response');
-      return data.summary;
+      // Model loading
+      if (res.status === 503) throw new Error('503');
+      // Empty or error — use fallback
+      console.warn('Mistral empty/error, using fallback. source:', data.source);
+      return { text: AI._fallbackSummary(ctx), source: 'fallback' };
     } catch(err) {
       if (err.message === '503') throw err;
       console.warn('AI API failed, using fallback:', err.message);
-      return AI._fallbackSummary(ctx);
+      return { text: AI._fallbackSummary(ctx), source: 'fallback' };
     }
   },
 
@@ -135,7 +137,7 @@ ${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name}: ${userMessage} [/INST
       const res = await fetch('/api/ai-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.getToken()}` },
-        body: JSON.stringify({ prompt, mode: 'chat', context, name, userMessage }),
+        body: JSON.stringify({ mode: 'chat', context, name, userMessage, history: history }),
       });
       const data = await res.json();
       // If AI returned a real response, use it
