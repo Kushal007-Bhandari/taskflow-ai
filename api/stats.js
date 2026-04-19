@@ -106,7 +106,12 @@ export default async function handler(req, res) {
     const recentTodos = allTodosForAI.filter(t => t.status === 'completed');
 
     // Normalize date fields to YYYY-MM-DD strings so they match frontend DateUtils
-    const normDate = (d) => d.date ? String(d.date).split('T')[0] : d.date;
+    // Neon may return DATE as a JS Date object or string — handle both
+    const normDate = (d) => {
+      if (!d.date) return d.date;
+      if (d.date instanceof Date) return d.date.toISOString().split('T')[0];
+      return String(d.date).split('T')[0];
+    };
     const dailyCompletionsFixed = dailyCompletions.map(d => ({ ...d, date: normDate(d) }));
     const dailyCreatedFixed     = dailyCreated.map(d     => ({ ...d, date: normDate(d) }));
 
