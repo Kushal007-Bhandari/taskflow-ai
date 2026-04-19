@@ -53,11 +53,13 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { title, description, category_id, priority, due_date, tags } = body;
+      const { title, description, category_id, priority, due_date, tags, status } = body;
       if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
+      const initialStatus = status || 'pending';
+      const completedAt   = initialStatus === 'completed' ? new Date().toISOString() : null;
       const [todo] = await sql`
-        INSERT INTO todos (user_id, title, description, category_id, priority, due_date, tags)
-        VALUES (${userId}, ${title.trim()}, ${description || ''}, ${category_id || null}, ${priority || 'medium'}, ${due_date || null}, ${tags || []})
+        INSERT INTO todos (user_id, title, description, category_id, priority, status, due_date, tags, completed_at)
+        VALUES (${userId}, ${title.trim()}, ${description || ''}, ${category_id || null}, ${priority || 'medium'}, ${initialStatus}, ${due_date || null}, ${tags || []}, ${completedAt})
         RETURNING *
       `;
       return res.status(201).json({ todo });
