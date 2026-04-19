@@ -1,26 +1,30 @@
 // api/auth.js
-// Handles: register, login, verify, logout
-
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-export default async function handler(req, res_obj) {
-  if (req.method === 'OPTIONS') { setCors(res_obj); return res_obj.status(200).end(); }
-  if (req.method !== 'POST') { setCors(res_obj); return res_obj.status(405).json({ error: 'Method not allowed' }); }
+function setCors(r) {
+  r.setHeader('Access-Control-Allow-Origin', '*');
+  r.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  r.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+}
+
+export default async function handler(req, res) {
+  setCors(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const sql = neon(process.env.DATABASE_URL);
   const { action, ...data } = req.body || {};
 
   try {
-    // ── REGISTER ──────────────────────────────────────────────────────────
     if (action === 'register') {
       const { email, password, name } = data;
-      if (!email || !password || !name) return res(400, { error: 'All fields required' });
-      if (password.length < 6) return res(400, { error: 'Password must be at least 6 characters' });
+      if (!email || !password || !name) return res.status(400).json({ error: 'All fields required' });
+      if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
       const existing = await sql`SELECT id FROM users WHERE email = ${email.toLowerCase()}`;
-      if (existing.length > 0) return res(400, { error: 'Email already registered' });
+      if (existing.length > 0) return res.status(400).json({ error: 'Email already registered' });
 
       const hash = await bcrypt.hash(password, 12);
       const colors = ['#f0883e', '#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#14b8a6'];
@@ -32,45 +36,38 @@ export default async function handler(req, res_obj) {
         RETURNING id, email, name, avatar_color, created_at
       `;
 
-      // Create default categories
       const defaultCategories = [
-        { name: 'Work', color: '#3b82f6', icon: '💼' },
+        { name: 'Work',     color: '#3b82f6', icon: '💼' },
         { name: 'Personal', color: '#22c55e', icon: '🌱' },
-        { name: 'Study', color: '#a855f7', icon: '📚' },
-        { name: 'Health', color: '#ec4899', icon: '💪' },
+        { name: 'Study',    color: '#a855f7', icon: '📚' },
+        { name: 'Health',   color: '#ec4899', icon: '💪' },
       ];
-
       for (const cat of defaultCategories) {
-        await sql`
-          INSERT INTO categories (user_id, name, color, icon)
-          VALUES (${user.id}, ${cat.name}, ${cat.color}, ${cat.icon})
-        `;
+        await sql`INSERT INTO categories (user_id, name, color, icon) VALUES (${user.id}, ${cat.name}, ${cat.color}, ${cat.icon})`;
       }
 
       const token = await createSession(sql, user.id);
-      return res(201, { user, token });
+      return res.status(201).json({ user, token });
     }
 
-    // ── LOGIN ──────────────────────────────────────────────────────────────
     if (action === 'login') {
       const { email, password } = data;
-      if (!email || !password) return res(400, { error: 'Email and password required' });
+      if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
       const [user] = await sql`SELECT * FROM users WHERE email = ${email.toLowerCase()}`;
-      if (!user) return res(401, { error: 'Invalid email or password' });
+      if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
       const valid = await bcrypt.compare(password, user.password_hash);
-      if (!valid) return res(401, { error: 'Invalid email or password' });
+      if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
 
       const token = await createSession(sql, user.id);
       const { password_hash, ...safeUser } = user;
-      return res(200, { user: safeUser, token });
+      return res.status(200).json({ user: safeUser, token });
     }
 
-    // ── VERIFY ────────────────────────────────────────────────────────────
     if (action === 'verify') {
       const token = req.headers.authorization?.replace('Bearer ', '');
-      if (!token) return res(401, { error: 'No token provided' });
+      if (!token) return res.status(401).json({ error: 'No token provided' });
 
       const [session] = await sql`
         SELECT s.*, u.id as uid, u.email, u.name, u.avatar_color, u.created_at as user_created
@@ -78,9 +75,9 @@ export default async function handler(req, res_obj) {
         JOIN users u ON s.user_id = u.id
         WHERE s.token = ${token} AND s.expires_at > NOW()
       `;
-      if (!session) return res(401, { error: 'Invalid or expired session' });
+      if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
 
-      return res(200, {
+      return res.status(200).json({
         user: {
           id: session.uid,
           email: session.email,
@@ -91,38 +88,23 @@ export default async function handler(req, res_obj) {
       });
     }
 
-    // ── LOGOUT ────────────────────────────────────────────────────────────
     if (action === 'logout') {
       const token = req.headers.authorization?.replace('Bearer ', '');
       if (token) await sql`DELETE FROM sessions WHERE token = ${token}`;
-      return res(200, { message: 'Logged out' });
+      return res.status(200).json({ message: 'Logged out' });
     }
 
-    return res(400, { error: 'Unknown action' });
+    return res.status(400).json({ error: 'Unknown action' });
 
   } catch (err) {
     console.error('Auth error:', err);
-    return res(500, { error: 'Server error' });
+    return res.status(500).json({ error: 'Server error' });
   }
-};
+}
 
 async function createSession(sql, userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-  await sql`
-    INSERT INTO sessions (user_id, token, expires_at)
-    VALUES (${userId}, ${token}, ${expiresAt})
-  `;
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await sql`INSERT INTO sessions (user_id, token, expires_at) VALUES (${userId}, ${token}, ${expiresAt})`;
   return token;
-}
-
-function res(status, body) {
-  setCors(res_obj);
-  return res_obj.status(status).json(body);
-}
-
-function setCors(r) {
-  r.setHeader('Access-Control-Allow-Origin', '*');
-  r.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  r.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
 }
