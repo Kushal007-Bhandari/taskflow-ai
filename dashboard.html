@@ -52,9 +52,7 @@
 <aside class="drawer" id="drawer">
   <div class="drawer-header">
     <div class="drawer-logo">
-      <div class="drawer-logo-icon">
-        <span id="drawer-logo-icon"></span>
-      </div>
+      <div class="drawer-logo-icon"><span id="drawer-logo-icon"></span></div>
       <div class="drawer-logo-name">Task<span>Flow</span></div>
     </div>
     <button class="btn btn-ghost btn-icon btn-sm" onclick="Drawer.close()">
@@ -67,15 +65,9 @@
         <span id="d-plus"></span> New Task
       </button>
     <div class="drawer-section-label">Navigation</div>
-    <a href="dashboard.html" class="drawer-nav-item active">
-      <span id="d-home"></span> Dashboard
-    </a>
-    <a href="analytics.html" class="drawer-nav-item">
-      <span id="d-chart"></span> Analytics
-    </a>
-    <a href="summary.html" class="drawer-nav-item">
-      <span id="d-brain"></span> AI Summary
-    </a>
+    <a href="dashboard.html" class="drawer-nav-item active"><span id="d-home"></span> Dashboard</a>
+    <a href="analytics.html" class="drawer-nav-item"><span id="d-chart"></span> Analytics</a>
+    <a href="summary.html" class="drawer-nav-item"><span id="d-brain"></span> AI Summary</a>
 
     <div class="drawer-section-label">Categories</div>
     <div id="drawer-categories">
@@ -100,7 +92,7 @@
 <!-- Main content -->
 <main class="app-main">
 
-  <!-- Search (hidden by default on mobile) -->
+  <!-- Search -->
   <div id="search-wrap" class="hidden" style="margin-bottom:14px">
     <div class="search-bar">
       <span class="search-icon" id="search-icon-inner"></span>
@@ -123,6 +115,27 @@
       <span id="prog-label">0%</span>
     </div>
     <div class="progress-track"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Smart Focus Button -->
+  <div style="margin-bottom:14px">
+    <button class="btn btn-primary" id="smart-focus-btn" onclick="toggleSmartFocus()" style="width:100%;justify-content:center;gap:10px;height:46px;font-size:14px">
+      <span id="focus-btn-icon"></span>
+      <span id="focus-btn-label">⚡ Smart Focus</span>
+    </button>
+  </div>
+
+  <!-- Smart Focus Panel (hidden until button clicked) -->
+  <div id="smart-focus-panel" style="display:none;margin-bottom:16px">
+    <div class="card" style="padding:0;overflow:hidden;border:1.5px solid var(--accent)">
+      <!-- Panel header -->
+      <div style="padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;font-weight:600;color:var(--accent-2)">Tasks ranked by urgency</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-3)">Score = Priority + Overdue Days + Age</span>
+      </div>
+      <!-- Ranked list -->
+      <div id="smart-focus-list" style="padding:8px 0"></div>
+    </div>
   </div>
 
   <!-- Filters -->
@@ -167,17 +180,14 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="edit-id"/>
-
       <div class="form-group">
         <label class="form-label">Task Title *</label>
         <input id="t-title" type="text" class="form-input-plain" placeholder="What needs to be done?" required/>
       </div>
-
       <div class="form-group">
         <label class="form-label">Description</label>
         <textarea id="t-desc" class="form-input-plain" rows="2" placeholder="Optional details..."></textarea>
       </div>
-
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Priority</label>
@@ -196,7 +206,6 @@
           </select>
         </div>
       </div>
-
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Category</label>
@@ -226,7 +235,8 @@
 // ── State ────────────────────────────────────────────────────
 let allTodos = [], allCats = [];
 let filters = { status: '', priority: '', category_id: '', search: '' };
-let searchVisible = false;
+let searchVisible   = false;
+let focusModeActive = false;
 
 // ── Init ─────────────────────────────────────────────────────
 async function init() {
@@ -239,8 +249,8 @@ async function init() {
 }
 
 function injectIcons() {
-  document.getElementById('menu-icon').innerHTML        = Icons.menu(20);
-  document.getElementById('header-plus').innerHTML     = Icons.plus(20);
+  document.getElementById('menu-icon').innerHTML         = Icons.menu(20);
+  document.getElementById('header-plus').innerHTML      = Icons.plus(20);
   document.getElementById('search-icon-btn').innerHTML  = Icons.search(20);
   document.getElementById('search-icon-inner').innerHTML= Icons.search(16);
   document.getElementById('nav-home').innerHTML         = Icons.home(22);
@@ -256,6 +266,7 @@ function injectIcons() {
   document.getElementById('d-brain').innerHTML          = Icons.brain(18);
   document.getElementById('drawer-logout').innerHTML    = Icons.logout(16);
   document.getElementById('modal-close-icon').innerHTML = Icons.x(18);
+  document.getElementById('focus-btn-icon').innerHTML   = Icons.trending(18);
 }
 
 function toggleSearch() {
@@ -275,6 +286,8 @@ async function loadTodos() {
     allTodos = await TodoAPI.getTodos(f);
     renderTodos();
     renderStats();
+    // Refresh smart focus panel if it's open
+    if (focusModeActive) renderSmartFocusPanel();
   } catch(e) { Toast.error('Failed to load tasks'); }
 }
 
@@ -284,6 +297,139 @@ async function loadCats() {
     renderDrawerCats();
     populateCatDropdowns();
   } catch(e) { console.error(e); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ⚡ SMART FOCUS — PRIORITY SCORING ALGORITHM
+// Score = (Priority Weight × 3) + (Overdue Days × 2) + (Age Days × 0.5, capped at 5)
+// ══════════════════════════════════════════════════════════════
+function scoreTask(t) {
+  const PRI = { high: 3, medium: 2, low: 1 };
+  const priorityScore = (PRI[t.priority] || 1) * 3;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  // Overdue bonus — each extra day = +2 points
+  let overdueScore = 0;
+  if (t.due_date) {
+    const due = new Date(t.due_date); due.setHours(0, 0, 0, 0);
+    const daysOverdue = Math.floor((today - due) / 86400000);
+    if (daysOverdue > 0) overdueScore = daysOverdue * 2;
+  }
+
+  // Age bonus — old tasks slowly bubble up, capped at 5
+  const created  = new Date(t.created_at || Date.now());
+  const ageDays  = Math.max(0, Math.floor((today - created) / 86400000));
+  const ageScore = Math.min(ageDays * 0.5, 5);
+
+  return Math.round(priorityScore + overdueScore + ageScore);
+}
+
+function toggleSmartFocus() {
+  focusModeActive = !focusModeActive;
+  const panel = document.getElementById('smart-focus-panel');
+  const btn   = document.getElementById('smart-focus-btn');
+  const lbl   = document.getElementById('focus-btn-label');
+  const icon  = document.getElementById('focus-btn-icon');
+
+  if (focusModeActive) {
+    panel.style.display = 'block';
+    btn.style.background = 'var(--accent-2, #4f46e5)';
+    lbl.textContent = '✕ Exit Smart Focus';
+    icon.innerHTML  = Icons.x ? Icons.x(18) : Icons.trending(18);
+    renderSmartFocusPanel();
+  } else {
+    panel.style.display = 'none';
+    btn.style.background = '';
+    lbl.textContent = '⚡ Smart Focus';
+    icon.innerHTML  = Icons.trending(18);
+  }
+}
+
+function renderSmartFocusPanel() {
+  const pending = allTodos.filter(t =>
+    t.status !== 'completed' && t.status !== 'cancelled'
+  );
+
+  const container = document.getElementById('smart-focus-list');
+
+  if (!pending.length) {
+    container.innerHTML = `
+      <div style="padding:24px;text-align:center;color:var(--text-3)">
+        ${Icons.circle_check(24)}
+        <p style="margin-top:8px;font-size:13px">All tasks done — great work! 🎉</p>
+      </div>`;
+    return;
+  }
+
+  // Sort by score descending
+  const ranked = [...pending].sort((a, b) => scoreTask(b) - scoreTask(a));
+
+  const PRI_COL = { high: 'var(--red)', medium: 'var(--yellow)', low: 'var(--green)' };
+  const PRI_BG  = { high: 'var(--red-bg)', medium: 'var(--accent-bg)', low: 'var(--green-bg)' };
+
+  container.innerHTML = ranked.map((t, i) => {
+    const score = scoreTask(t);
+    const over  = t.due_date && DateUtils.isOverdue(t.due_date);
+    const soon  = t.due_date && DateUtils.isSoon(t.due_date);
+    const isTop = i === 0;
+
+    return `
+      <div style="
+        display:flex;align-items:flex-start;gap:12px;
+        padding:12px 16px;
+        border-bottom:1px solid var(--border);
+        background:${isTop ? 'var(--accent-bg)' : 'transparent'};
+        ${isTop ? 'border-left:3px solid var(--accent)' : ''}
+      ">
+        <!-- Rank badge -->
+        <div style="
+          width:26px;height:26px;border-radius:50%;flex-shrink:0;
+          display:flex;align-items:center;justify-content:center;
+          background:${isTop ? 'var(--accent)' : 'var(--bg-3,var(--card-bg))'};
+          font-size:11px;font-weight:700;
+          color:${isTop ? '#fff' : 'var(--text-3)'};
+          margin-top:2px;border:1px solid var(--border)
+        ">${i + 1}</div>
+
+        <!-- Task info -->
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13.5px;font-weight:${isTop ? '700' : '500'};color:var(--text-1);margin-bottom:4px;line-height:1.4">
+            ${esc(t.title)}
+            ${isTop ? `<span style="font-size:10px;font-weight:600;color:var(--accent-2);margin-left:6px;text-transform:uppercase">Do this first</span>` : ''}
+          </div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:8px;background:${PRI_BG[t.priority]};color:${PRI_COL[t.priority]}">${t.priority}</span>
+            ${t.category_name ? `<span style="font-size:11px;color:var(--text-2)">· ${esc(t.category_name)}</span>` : ''}
+            ${t.due_date ? `<span style="font-size:11px;color:${over ? 'var(--red)' : soon ? 'var(--yellow)' : 'var(--text-3)'};font-weight:${over ? '600' : '400'}">· ${over ? '⚠ overdue' : ''} ${DateUtils.formatShort(t.due_date)}</span>` : ''}
+          </div>
+        </div>
+
+        <!-- Score + done button -->
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          <span style="font-size:10px;color:var(--text-3);font-family:var(--font-mono);white-space:nowrap">score ${score}</span>
+          <button
+            class="btn btn-sm ${isTop ? 'btn-primary' : 'btn-outline'}"
+            style="font-size:11px;padding:4px 10px;height:28px"
+            onclick="smartFocusDone('${t.id}','${t.status}',this)">
+            ${Icons.check(12)} Done
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function smartFocusDone(id, status, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await TodoAPI.toggleComplete(id, status);
+    await loadTodos();
+    Toast.success('Task completed! 🎉');
+  } catch(e) {
+    Toast.error('Failed to update');
+    btn.disabled = false;
+  }
 }
 
 // ── Render todos ──────────────────────────────────────────────
@@ -302,9 +448,9 @@ function renderTodos() {
   }
 
   el.innerHTML = allTodos.map(t => {
-    const done  = t.status === 'completed';
-    const over  = t.due_date && DateUtils.isOverdue(t.due_date) && !done;
-    const soon  = t.due_date && DateUtils.isSoon(t.due_date) && !done;
+    const done = t.status === 'completed';
+    const over = t.due_date && DateUtils.isOverdue(t.due_date) && !done;
+    const soon = t.due_date && DateUtils.isSoon(t.due_date) && !done;
     return `<div class="todo-item ${done ? 'completed' : ''} p-${t.priority}" onclick="openEditModal('${t.id}')">
       <button class="todo-check ${done ? 'done' : ''}"
         onclick="event.stopPropagation();toggleTodo('${t.id}','${t.status}')">
@@ -315,8 +461,7 @@ function renderTodos() {
         <div class="todo-meta">
           ${t.category_name ? `<span class="tag tag-cat">
             <span style="width:7px;height:7px;border-radius:50%;background:${t.category_color};display:inline-block"></span>
-            ${esc(t.category_name)}
-          </span>` : ''}
+            ${esc(t.category_name)}</span>` : ''}
           ${priorityTag(t.priority)}
           ${t.status === 'in_progress' ? `<span class="tag tag-blue">In Progress</span>` : ''}
           ${t.due_date ? `<span class="tag tag-date ${over ? 'overdue' : soon ? 'soon' : ''}">
@@ -343,18 +488,15 @@ function renderStats() {
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card">
       <div class="stat-icon-wrap" style="background:var(--accent-bg);color:var(--accent-2)">${Icons.list(20)}</div>
-      <div class="stat-value">${total}</div>
-      <div class="stat-label">Total Tasks</div>
+      <div class="stat-value">${total}</div><div class="stat-label">Total Tasks</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon-wrap" style="background:var(--green-bg);color:var(--green)">${Icons.circle_check(20)}</div>
-      <div class="stat-value" style="color:var(--green)">${completed}</div>
-      <div class="stat-label">Completed</div>
+      <div class="stat-value" style="color:var(--green)">${completed}</div><div class="stat-label">Completed</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon-wrap" style="background:var(--blue-bg);color:var(--blue)">${Icons.clock(20)}</div>
-      <div class="stat-value" style="color:var(--blue)">${pending}</div>
-      <div class="stat-label">Pending</div>
+      <div class="stat-value" style="color:var(--blue)">${pending}</div><div class="stat-label">Pending</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon-wrap" style="background:var(--${overdue?'red':'accent'}-bg);color:var(--${overdue?'red':'accent-2'})">${overdue ? Icons.alert(20) : Icons.trending(20)}</div>
@@ -370,14 +512,12 @@ function renderStats() {
 function renderDrawerCats() {
   document.getElementById('drawer-categories').innerHTML = `
     <button class="drawer-nav-item" onclick="filterByCat('');Drawer.close()">
-      ${Icons.folder(16)} All Tasks
-      <span class="drawer-badge">${allTodos.length}</span>
+      ${Icons.folder(16)} All Tasks <span class="drawer-badge">${allTodos.length}</span>
     </button>
     ${allCats.map(c => `
       <button class="drawer-nav-item" onclick="filterByCat('${c.id}');Drawer.close()">
         <span class="cat-dot" style="background:${c.color}"></span>
-        ${esc(c.name)}
-        <span class="drawer-badge">${c.todo_count || 0}</span>
+        ${esc(c.name)} <span class="drawer-badge">${c.todo_count || 0}</span>
       </button>`).join('')}`;
 }
 
@@ -415,23 +555,21 @@ function openEditModal(id) {
   const t = allTodos.find(x => x.id === id);
   if (!t) return;
   document.getElementById('modal-title').textContent = 'Edit Task';
-  document.getElementById('edit-id').value     = t.id;
-  document.getElementById('t-title').value     = t.title;
-  document.getElementById('t-desc').value      = t.description || '';
-  document.getElementById('t-priority').value  = t.priority;
-  document.getElementById('t-status').value    = t.status;
-  document.getElementById('t-cat').value       = t.category_id || '';
-  document.getElementById('t-due').value       = DateUtils.toInput(t.due_date);
+  document.getElementById('edit-id').value    = t.id;
+  document.getElementById('t-title').value    = t.title;
+  document.getElementById('t-desc').value     = t.description || '';
+  document.getElementById('t-priority').value = t.priority;
+  document.getElementById('t-status').value   = t.status;
+  document.getElementById('t-cat').value      = t.category_id || '';
+  document.getElementById('t-due').value      = DateUtils.toInput(t.due_date);
   Modal.open('todo-modal');
 }
 
 async function saveTodo() {
   const title = document.getElementById('t-title').value.trim();
   if (!title) { Toast.error('Title is required'); return; }
-
   const btn = document.getElementById('save-btn');
   setLoading(btn, true, 'Saving...');
-
   const payload = {
     title,
     description:  document.getElementById('t-desc').value,
@@ -440,9 +578,7 @@ async function saveTodo() {
     category_id:  document.getElementById('t-cat').value || null,
     due_date:     document.getElementById('t-due').value || null,
   };
-
   const editId = document.getElementById('edit-id').value;
-
   try {
     if (editId) {
       await TodoAPI.updateTodo({ ...payload, id: editId });
