@@ -54,7 +54,7 @@
       <div class="ai-icon-wrap"><span id="ai-icon"></span></div>
       <div>
         <div class="ai-hero-title">Productivity Summary</div>
-        <div class="ai-hero-sub">Mistral-7B · Hugging Face · Personalized from your real data</div>
+        <div class="ai-hero-sub">Llama 3.3 70B · Groq · Personalized from your real data</div>
       </div>
     </div>
 
@@ -92,7 +92,7 @@
       <button class="btn btn-primary" id="gen-btn" onclick="generateSummary()">
         <span id="gen-icon"></span> Generate Summary
       </button>
-      <span class="text-xs text-3" id="model-status">Ready — powered by Mistral-7B</span>
+      <span class="text-xs text-3" id="model-status">Ready — powered by Llama 3.3 70B</span>
     </div>
 
     <!-- Output -->
@@ -241,7 +241,7 @@ async function generateSummary() {
   output.innerHTML = `<div class="ai-loading"><div class="dot-pulse"><span></span><span></span><span></span></div><span id="ai-progress">Preparing your data...</span></div>`;
 
   try {
-    const summary = await AI.summarize(
+    const result = await AI.summarize(
       statsData.recentTodos,
       { total: parseInt(statsData.overview.recent_total)||0, completed: parseInt(statsData.overview.recent_completed)||0, overdue: parseInt(statsData.overview.overdue)||0 },
       currentRange,
@@ -250,14 +250,22 @@ async function generateSummary() {
       userName
     );
 
+    const summaryText   = (result && typeof result === 'object') ? (result.text || '') : (result || '');
+    const summarySource = (result && typeof result === 'object') ? (result.source || 'unknown') : 'unknown';
+    const isAI          = summarySource === 'groq-llama3' || summarySource === 'mistral-7b';
+
     output.classList.add('has-content');
     output.innerHTML = `
-      <p style="line-height:1.8">${esc(summary)}</p>
+      <p style="line-height:1.8">${esc(summaryText)}</p>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-3)">
-        ${Icons.sparkles(12)} Mistral-7B via Hugging Face &nbsp;·&nbsp; ${new Date().toLocaleString()}
+        ${Icons.sparkles(12)}
+        ${isAI
+          ? `Llama 3.3 70B via Groq &nbsp;·&nbsp; ${new Date().toLocaleString()}`
+          : `<span style="color:var(--yellow)">⚠ AI model unavailable — showing rule-based summary. Try again later.</span>`
+        }
       </div>`;
-    status.textContent = 'Summary ready';
-    Toast.success('AI summary generated!');
+    status.textContent = isAI ? 'Summary ready ✓ Llama 3.3 70B' : 'Summary ready (fallback)';
+    Toast.success(isAI ? 'AI summary generated!' : 'Summary generated (AI model offline)');
   } catch(e) {
     if (e.message === '503') {
       output.innerHTML = `<span style="color:var(--yellow);font-size:13px">⏳ AI model is warming up — wait 20 seconds and try again.</span>`;

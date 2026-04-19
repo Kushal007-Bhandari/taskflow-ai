@@ -96,12 +96,12 @@ Write ${name}'s productivity message now: [/INST]`;
       const data = await res.json().catch(() => ({}));
       // Mistral returned a real response
       if (data.summary && data.summary.length > 20) {
-        return { text: data.summary, source: 'mistral-7b' };
+        return { text: data.summary, source: data.source || 'groq-llama3' };
       }
       // Model loading
       if (res.status === 503) throw new Error('503');
       // Empty or error — use fallback
-      console.warn('Mistral empty/error, using fallback. source:', data.source);
+      console.warn('AI empty/error, using fallback. source:', data.source);
       return { text: AI._fallbackSummary(ctx), source: 'fallback' };
     } catch(err) {
       if (err.message === '503') throw err;
