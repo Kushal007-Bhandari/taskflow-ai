@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — Analytics</title>
   <link rel="stylesheet" href="css/style.css"/>
+<script>
+  // Apply theme before render to prevent flash
+  (function(){
+    var t = localStorage.getItem('tf-theme');
+    if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  })();
+</script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -12,7 +19,9 @@
 <header class="app-header">
   <button class="btn btn-ghost btn-icon" onclick="Drawer.open()"><span id="menu-icon"></span></button>
   <div class="header-title">Analytics</div>
-  <div style="width:40px"></div>
+  <button class="theme-toggle" onclick="Theme.toggle()" title="Toggle theme">
+    <span class="theme-toggle-icon"></span>
+  </button>
 </header>
 
 <nav class="bottom-nav">
@@ -39,6 +48,12 @@
     <a href="summary.html"   class="drawer-nav-item"><span id="d-brain"></span> AI Summary</a>
   </nav>
   <div class="drawer-footer">
+    <div class="drawer-theme-row">
+      <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:flex-start;gap:10px" onclick="Theme.toggle()">
+        <span class="theme-toggle-icon" style="color:var(--text-2)"></span>
+        <span class="theme-label" style="font-size:13px;color:var(--text-2)">Dark mode</span>
+      </button>
+    </div>
     <div class="drawer-user" onclick="Auth.logout()">
       <div class="avatar" data-user-avatar style="width:36px;height:36px;font-size:14px">?</div>
       <div><div class="user-name" data-user-name>Loading...</div><div class="logout-hint">Tap to sign out</div></div>
@@ -115,6 +130,7 @@ Chart.defaults.font.family    = "'Inter', sans-serif";
 Chart.defaults.borderColor    = '#1e2d45';
 
 async function init() {
+  Theme.init();
   injectIcons();
   const user = await Auth.requireAuth();
   if (!user) return;
@@ -135,6 +151,10 @@ function injectIcons() {
   document.getElementById('d-chart').innerHTML    = Icons.chart(18);
   document.getElementById('d-brain').innerHTML    = Icons.brain(18);
   document.getElementById('d-logout').innerHTML   = Icons.logout(16);
+  document.querySelectorAll('.theme-toggle-icon').forEach(el => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    el.innerHTML = isDark ? Icons.sun(18) : Icons.moon(18);
+  });
 }
 
 async function loadStats() {

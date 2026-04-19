@@ -167,3 +167,62 @@ function priorityTag(p) {
   const m = map[p] || map.medium;
   return `<span class="tag ${m.cls}">${Icons.flag(11)} ${m.label}</span>`;
 }
+
+// ── Theme ───────────────────────────────────────────────────
+const Theme = {
+  init() {
+    // Light is default — only apply dark if explicitly saved
+    const saved = localStorage.getItem('tf-theme');
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    this._updateIcon();
+  },
+  toggle() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (isDark) {
+      document.documentElement.removeAttribute('data-theme');
+      localStorage.setItem('tf-theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('tf-theme', 'dark');
+    }
+    this._updateIcon();
+  },
+  _updateIcon() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.querySelectorAll('.theme-toggle-icon').forEach(el => {
+      el.innerHTML = isDark ? Icons.sun(18) : Icons.moon(18);
+    });
+    document.querySelectorAll('.theme-label').forEach(el => {
+      el.textContent = isDark ? 'Light mode' : 'Dark mode';
+    });
+  },
+};
+
+// ── Data Cache (lightning fast) ─────────────────────────────
+const Cache = {
+  TTL: 45000, // 45 seconds
+  set(key, data) {
+    try {
+      sessionStorage.setItem('tf_' + key, JSON.stringify({ data, ts: Date.now() }));
+    } catch(e) {}
+  },
+  get(key) {
+    try {
+      const raw = sessionStorage.getItem('tf_' + key);
+      if (!raw) return null;
+      const { data, ts } = JSON.parse(raw);
+      if (Date.now() - ts > this.TTL) { sessionStorage.removeItem('tf_' + key); return null; }
+      return data;
+    } catch(e) { return null; }
+  },
+  clear(key) {
+    try { sessionStorage.removeItem('tf_' + key); } catch(e) {}
+  },
+  clearAll() {
+    try {
+      Object.keys(sessionStorage).filter(k => k.startsWith('tf_')).forEach(k => sessionStorage.removeItem(k));
+    } catch(e) {}
+  },
+};

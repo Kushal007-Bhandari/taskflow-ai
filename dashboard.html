@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — Dashboard</title>
   <link rel="stylesheet" href="css/style.css"/>
+<script>
+  // Apply theme before render to prevent flash
+  (function(){
+    var t = localStorage.getItem('tf-theme');
+    if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  })();
+</script>
 </head>
 <body>
 
@@ -17,6 +24,9 @@
   <div class="header-actions">
     <button class="btn btn-ghost btn-icon" onclick="toggleSearch()" aria-label="Search">
       <span id="search-icon-btn"></span>
+    </button>
+    <button class="theme-toggle" onclick="Theme.toggle()" title="Toggle theme">
+      <span class="theme-toggle-icon"></span>
     </button>
     <button class="btn btn-primary btn-icon" onclick="openAddModal()" aria-label="New Task">
       <span id="header-plus"></span>
@@ -78,6 +88,12 @@
   </nav>
 
   <div class="drawer-footer">
+    <div class="drawer-theme-row">
+      <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:flex-start;gap:10px" onclick="Theme.toggle()">
+        <span class="theme-toggle-icon" style="color:var(--text-2)"></span>
+        <span class="theme-label" style="font-size:13px;color:var(--text-2)">Dark mode</span>
+      </button>
+    </div>
     <div class="drawer-user" onclick="Auth.logout()">
       <div class="avatar" id="drawer-avatar" data-user-avatar style="width:36px;height:36px;font-size:14px">?</div>
       <div>
@@ -270,11 +286,12 @@ let focusModeActive = false;
 
 // ── Init ─────────────────────────────────────────────────────
 async function init() {
+  Theme.init();
   injectIcons();
   const user = await Auth.requireAuth();
   if (!user) return;
   populateSidebarUser();
-  await Promise.all([loadCats(), loadTodos()]);
+  await Promise.all([loadCats(true), loadTodos(true)]);
   setupListeners();
 }
 
@@ -296,6 +313,10 @@ function injectIcons() {
   document.getElementById('d-brain').innerHTML          = Icons.brain(18);
   document.getElementById('drawer-logout').innerHTML    = Icons.logout(16);
   document.getElementById('modal-close-icon').innerHTML = Icons.x(18);
+  document.querySelectorAll('.theme-toggle-icon').forEach(el => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    el.innerHTML = isDark ? Icons.sun(18) : Icons.moon(18);
+  });
   document.getElementById('focus-btn-icon').innerHTML   = Icons.trending(18);
 }
 
@@ -306,24 +327,35 @@ function toggleSearch() {
 }
 
 // ── Load ─────────────────────────────────────────────────────
-async function loadTodos() {
+async function loadTodos(useCache = false) {
   try {
     const f = {};
     if (filters.status)      f.status      = filters.status;
     if (filters.priority)    f.priority    = filters.priority;
     if (filters.category_id) f.category_id = filters.category_id;
     if (filters.search)      f.search      = filters.search;
+    const cacheKey = 'todos_' + JSON.stringify(f);
+    // Show cached data instantly, then refresh in background
+    if (useCache) {
+      const cached = Cache.get(cacheKey);
+      if (cached) { allTodos = cached; renderTodos(); renderStats(); if (focusModeActive) renderSmartFocusPanel(); }
+    }
     allTodos = await TodoAPI.getTodos(f);
+    Cache.set(cacheKey, allTodos);
     renderTodos();
     renderStats();
-    // Refresh smart focus panel if it's open
     if (focusModeActive) renderSmartFocusPanel();
   } catch(e) { Toast.error('Failed to load tasks'); }
 }
 
-async function loadCats() {
+async function loadCats(useCache = false) {
   try {
+    if (useCache) {
+      const cached = Cache.get('cats');
+      if (cached) { allCats = cached; renderDrawerCats(); populateCatDropdowns(); }
+    }
     allCats = await TodoAPI.getCategories();
+    Cache.set('cats', allCats);
     renderDrawerCats();
     populateCatDropdowns();
   } catch(e) { console.error(e); }
@@ -561,6 +593,7 @@ function populateCatDropdowns() {
 async function toggleTodo(id, status) {
   try {
     await TodoAPI.toggleComplete(id, status);
+    Cache.clearAll();
     await loadTodos();
     Toast.success(status === 'completed' ? 'Marked as pending' : 'Task completed!');
   } catch(e) { Toast.error('Failed to update'); }
@@ -570,6 +603,7 @@ async function deleteTodo(id) {
   if (!confirm('Delete this task?')) return;
   try {
     await TodoAPI.deleteTodo(id);
+    Cache.clearAll();
     await loadTodos();
     Toast.success('Task deleted');
   } catch(e) { Toast.error('Failed to delete'); }
@@ -619,6 +653,7 @@ async function saveTodo() {
     }
     Modal.close('todo-modal');
     resetModal();
+    Cache.clearAll();
     await loadTodos();
   } catch(e) {
     Toast.error(e.message);

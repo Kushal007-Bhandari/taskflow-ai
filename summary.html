@@ -5,13 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — AI</title>
   <link rel="stylesheet" href="css/style.css"/>
+<script>
+  // Apply theme before render to prevent flash
+  (function(){
+    var t = localStorage.getItem('tf-theme');
+    if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  })();
+</script>
 </head>
 <body>
 
 <header class="app-header">
   <button class="btn btn-ghost btn-icon" onclick="Drawer.open()"><span id="menu-icon"></span></button>
   <div class="header-title">AI Assistant</div>
-  <div style="width:40px"></div>
+  <button class="theme-toggle" onclick="Theme.toggle()" title="Toggle theme">
+    <span class="theme-toggle-icon"></span>
+  </button>
 </header>
 
 <nav class="bottom-nav">
@@ -38,6 +47,12 @@
     <a href="summary.html" class="drawer-nav-item active"><span id="d-brain"></span> AI Summary</a>
   </nav>
   <div class="drawer-footer">
+    <div class="drawer-theme-row">
+      <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:flex-start;gap:10px" onclick="Theme.toggle()">
+        <span class="theme-toggle-icon" style="color:var(--text-2)"></span>
+        <span class="theme-label" style="font-size:13px;color:var(--text-2)">Dark mode</span>
+      </button>
+    </div>
     <div class="drawer-user" onclick="Auth.logout()">
       <div class="avatar" data-user-avatar style="width:36px;height:36px;font-size:14px">?</div>
       <div><div class="user-name" data-user-name>Loading...</div><div class="logout-hint">Tap to sign out</div></div>
@@ -178,6 +193,7 @@ let chatHistory  = [];
 let userName     = '';
 
 async function init() {
+  Theme.init();
   injectIcons();
   const user = await Auth.requireAuth();
   if (!user) return;

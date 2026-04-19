@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>TaskFlow — Sign In</title>
   <link rel="stylesheet" href="css/style.css"/>
+<script>
+  // Apply theme before render to prevent flash
+  (function(){
+    var t = localStorage.getItem('tf-theme');
+    if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  })();
+</script>
 </head>
 <body>
 <div class="auth-page">
@@ -84,7 +91,13 @@
       </form>
     </div>
 
-    <p style="text-align:center;font-size:12px;color:var(--text-3);margin-top:28px">
+    <div style="text-align:center;margin-top:20px">
+      <button class="theme-toggle" style="margin:0 auto" onclick="Theme.toggle()" title="Toggle theme">
+        <span class="theme-toggle-icon" id="idx-theme-icon"></span>
+      </button>
+      <div class="theme-label" style="font-size:11px;color:var(--text-3);margin-top:4px">Dark mode</div>
+    </div>
+    <p style="text-align:center;font-size:12px;color:var(--text-3);margin-top:12px">
       BCA Project II &nbsp;·&nbsp; TaskFlow AI &nbsp;·&nbsp; TU FOHSS
     </p>
   </div>
@@ -94,7 +107,13 @@
 <script src="js/icons.js"></script>
 <script src="js/auth.js"></script>
 <script>
+  Theme.init();
   Auth.requireGuest();
+  // set index theme icon
+  (function(){
+    const el = document.getElementById('idx-theme-icon');
+    if(el) el.innerHTML = document.documentElement.getAttribute('data-theme')==='dark' ? Icons.sun(18) : Icons.moon(18);
+  })();
 
   // Inject icons
   document.querySelectorAll('.input-icon').forEach((el, i) => {
