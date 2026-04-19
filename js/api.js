@@ -64,6 +64,10 @@ const TodoAPI = {
     return this.updateTodo({ id, status: newStatus });
   },
 
+  async setStatus(id, status) {
+    return this.updateTodo({ id, status });
+  },
+
   // ── Categories ─────────────────────────────────────────────
 
   async getCategories() {

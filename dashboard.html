@@ -473,7 +473,8 @@ function renderSmartFocusPanel() {
           <button
             class="btn btn-sm ${isTop ? 'btn-primary' : 'btn-outline'}"
             style="font-size:11px;padding:4px 10px;height:28px"
-            onclick="smartFocusDone('${t.id}','${t.status}',this)">
+            data-id="${t.id}" data-status="${t.status}"
+            onclick="smartFocusDone(this.dataset.id, this.dataset.status, this)">
             ${Icons.check(12)} Done
           </button>
         </div>
@@ -515,7 +516,7 @@ function renderTodos() {
     const soon = t.due_date && DateUtils.isSoon(t.due_date) && !done;
     return `<div class="todo-item ${done ? 'completed' : ''} p-${t.priority}" onclick="openEditModal('${t.id}')">
       <button class="todo-check ${done ? 'done' : ''}"
-        onclick="event.stopPropagation();toggleTodo('${t.id}','${t.status}')">
+        onclick="event.stopPropagation();toggleTodo('${t.id}','${t.status}','${t.prev_status||'pending'}')">
         ${done ? Icons.check(13) : ''}
       </button>
       <div class="todo-body">
@@ -592,10 +593,12 @@ function populateCatDropdowns() {
 // ── Actions ───────────────────────────────────────────────────
 async function toggleTodo(id, status) {
   try {
-    await TodoAPI.toggleComplete(id, status);
+    // If completing → set completed, if uncompleting → back to pending
+    const newStatus = status === 'completed' ? 'pending' : 'completed';
+    await TodoAPI.updateTodo({ id, status: newStatus });
     Cache.clearAll();
     await loadTodos();
-    Toast.success(status === 'completed' ? 'Marked as pending' : 'Task completed!');
+    Toast.success(status === 'completed' ? 'Marked as pending' : 'Task completed! 🎉');
   } catch(e) { Toast.error('Failed to update'); }
 }
 
