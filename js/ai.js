@@ -9,6 +9,9 @@ const AI = {
     const days   = parseInt(range) || 30;
     const ov     = statsData?.overview || {};
     const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const today  = new Date();
+    const todayDow = DAYS[today.getDay()];
+    const todayDate = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
     const total     = parseInt(ov.recent_total)     || 0;
     const completed = parseInt(ov.recent_completed) || 0;
@@ -19,53 +22,127 @@ const AI = {
     const rangeLabel = days <= 7 ? 'last 7 days' : days <= 30 ? 'last 30 days'
       : days <= 90 ? 'last 3 months' : days <= 180 ? 'last 6 months' : 'last year';
 
-    // Category performance
+    // Category performance — sorted
     const cats = (statsData?.categoryBreakdown || []).map(c => ({
       name:  c.name,
       total: parseInt(c.count)     || 0,
       done:  parseInt(c.completed) || 0,
       rate:  c.count > 0 ? Math.round(c.completed / c.count * 100) : 0,
-    }));
+    })).sort((a, b) => b.total - a.total);
+
+    const strongestCat = cats.filter(c => c.total >= 2).sort((a,b) => b.rate - a.rate)[0];
+    const weakestCat   = cats.filter(c => c.total >= 2).sort((a,b) => a.rate - b.rate)[0];
 
     // Best day of week
     const dayData = (statsData?.byDayOfWeek || []).sort((a,b) => b.count - a.count);
     const bestDay = dayData[0] ? DAYS[parseInt(dayData[0].dow)] : null;
+    const bestDayCount = dayData[0] ? parseInt(dayData[0].count) : 0;
+
+    // Priority breakdown
+    const priBreakdown = (statsData?.priorityBreakdown || []).reduce((acc, p) => {
+      acc[p.priority] = parseInt(p.count);
+      return acc;
+    }, {});
 
     // All tasks
     const all        = statsData?.allTodosForAI || statsData?.recentTodos || [];
     const doneTasks  = all.filter(t => t.status === 'completed');
     const openTasks  = all.filter(t => t.status !== 'completed' && t.status !== 'cancelled');
+    const inProgress = all.filter(t => t.status === 'in_progress');
     const overdueT   = openTasks.filter(t => t.due_date && new Date(t.due_date) < new Date());
+
+    // Due today / tomorrow / this week
+    const todayStr    = today.toISOString().split('T')[0];
+    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const weekEndStr  = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+    const dueToday    = openTasks.filter(t => t.due_date && String(t.due_date).split('T')[0] === todayStr);
+    const dueTomorrow = openTasks.filter(t => t.due_date && String(t.due_date).split('T')[0] === tomorrowStr);
+    const dueThisWeek = openTasks.filter(t => t.due_date && !overdueT.includes(t) && String(t.due_date).split('T')[0] >= todayStr && String(t.due_date).split('T')[0] <= weekEndStr);
+
+    // Priority of pending
+    const highPending   = openTasks.filter(t => t.priority === 'high');
+    const mediumPending = openTasks.filter(t => t.priority === 'medium');
+    const lowPending    = openTasks.filter(t => t.priority === 'low');
+
+    // Recent completions (last 3 days)
+    const threeDaysAgo  = new Date(Date.now() - 3 * 86400000);
+    const recentWins    = doneTasks.filter(t => t.completed_at && new Date(t.completed_at) > threeDaysAgo);
+
+    // Monthly summary if available
+    const monthly = (statsData?.monthlySummary || []).slice(-3);
 
     // Format task line
     const fmt = (t) => {
       const desc = t.description?.trim();
       const due  = t.due_date ? `, due ${String(t.due_date).split('T')[0]}` : '';
       const ov2  = t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed' ? ' [OVERDUE]' : '';
-      return `  • "${t.title}"${desc ? ` — ${desc}` : ''} (${t.priority || 'medium'}${due}${ov2})`;
+      const prog = t.status === 'in_progress' ? ' [IN PROGRESS]' : '';
+      return `  • "${t.title}"${desc ? ` — ${desc}` : ''} (${t.priority || 'medium'}${due}${ov2}${prog})`;
     };
 
     const lines = [
-      `USER: ${name} | PERIOD: ${rangeLabel}`,
-      `STATS: ${total} tasks · ${completed} completed (${rate}%) · ${pending} pending · ${overdue} overdue`,
+      `USER: ${name}`,
+      `TODAY: ${todayDate} (${todayDow})`,
+      `PERIOD ANALYZED: ${rangeLabel}`,
+      ``,
+      `OVERALL STATS:`,
+      `  Total tasks: ${total} | Completed: ${completed} (${rate}%) | Pending: ${pending} | Overdue: ${overdue}`,
     ];
 
-    if (cats.length) {
-      lines.push(`CATEGORIES: ${cats.map(c => `${c.name}: ${c.done}/${c.total} (${c.rate}%)`).join(', ')}`);
+    if (Object.keys(priBreakdown).length) {
+      lines.push(`  By priority: High=${priBreakdown.high||0}, Medium=${priBreakdown.medium||0}, Low=${priBreakdown.low||0}`);
     }
-    if (bestDay) lines.push(`BEST DAY: ${bestDay}`);
+
+    if (cats.length) {
+      lines.push(``);
+      lines.push(`CATEGORY PERFORMANCE:`);
+      cats.forEach(c => lines.push(`  ${c.name}: ${c.done}/${c.total} completed (${c.rate}%)`));
+      if (strongestCat) lines.push(`  → Strongest: ${strongestCat.name} (${strongestCat.rate}%)`);
+      if (weakestCat && weakestCat.name !== strongestCat?.name) lines.push(`  → Needs attention: ${weakestCat.name} (${weakestCat.rate}%)`);
+    }
+
+    if (bestDay) {
+      lines.push(``);
+      lines.push(`PATTERNS:`);
+      lines.push(`  Most productive day: ${bestDay} (${bestDayCount} completions)`);
+      if (bestDay === todayDow) lines.push(`  → Today (${todayDow}) is their best day historically!`);
+    }
+
+    // Urgent context
+    if (dueToday.length || dueTomorrow.length || overdueT.length) {
+      lines.push(``);
+      lines.push(`TIME-SENSITIVE:`);
+      if (overdueT.length)    lines.push(`  Overdue (${overdueT.length}): ${overdueT.map(t => `"${t.title}"`).join(', ')}`);
+      if (dueToday.length)    lines.push(`  Due today (${dueToday.length}): ${dueToday.map(t => `"${t.title}"`).join(', ')}`);
+      if (dueTomorrow.length) lines.push(`  Due tomorrow (${dueTomorrow.length}): ${dueTomorrow.map(t => `"${t.title}"`).join(', ')}`);
+    }
+
+    if (inProgress.length) {
+      lines.push(``);
+      lines.push(`IN PROGRESS (${inProgress.length}):`);
+      inProgress.forEach(t => lines.push(fmt(t)));
+    }
+
+    if (recentWins.length) {
+      lines.push(``);
+      lines.push(`RECENT WINS (last 3 days): ${recentWins.map(t => `"${t.title}"`).join(', ')}`);
+    }
 
     if (doneTasks.length) {
-      lines.push(`\nCOMPLETED (${doneTasks.length}):`);
+      lines.push(``);
+      lines.push(`ALL COMPLETED (${doneTasks.length}):`);
       doneTasks.slice(0, 12).forEach(t => lines.push(fmt(t)));
     }
     if (openTasks.length) {
-      lines.push(`\nPENDING (${openTasks.length}):`);
-      openTasks.slice(0, 10).forEach(t => lines.push(fmt(t)));
+      lines.push(``);
+      lines.push(`ALL PENDING (${openTasks.length}):`);
+      openTasks.slice(0, 12).forEach(t => lines.push(fmt(t)));
     }
-    if (overdueT.length) {
-      lines.push(`\nOVERDUE (${overdueT.length}):`);
-      overdueT.forEach(t => lines.push(fmt(t)));
+
+    if (monthly.length) {
+      lines.push(``);
+      lines.push(`MONTHLY TREND (last 3 months):`);
+      monthly.forEach(m => lines.push(`  ${m.month.trim()}: ${m.completed}/${m.created} (${m.completion_rate || 0}%)`));
     }
 
     return { context: lines.join('\n'), name, rangeLabel, total, completed, overdue, rate, pending, cats, bestDay, doneTasks, openTasks, overdueT };
