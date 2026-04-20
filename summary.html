@@ -121,8 +121,8 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
       <span id="chat-header-icon" style="color:var(--accent-2)"></span>
       <div>
-        <div class="card-title" style="margin:0">Your AI buddy</div>
-        <div class="card-sub" style="margin:0">texts like a friend, knows your tasks</div>
+        <div class="card-title" style="margin:0">AI Assistant</div>
+        <div class="card-sub" style="margin:0">Ask about your tasks, priorities, or get direction</div>
       </div>
     </div>
 
@@ -130,13 +130,13 @@
     <div id="chat-messages" style="min-height:120px;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px;background:var(--bg-2,var(--card-bg))">
       <div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--text-1)">
         <span style="color:var(--accent-2);flex-shrink:0;margin-top:1px" id="chat-welcome-icon"></span>
-        <span style="line-height:1.6">hey 👋 ask me anything — what to work on, how you're doing, or just chat</span>
+        <span style="line-height:1.6">Hi! I can help you understand your tasks, decide what to focus on, or give you a productivity check-in.</span>
       </div>
     </div>
 
     <!-- Input -->
     <div style="display:flex;gap:8px">
-      <input id="chat-input" type="text" class="form-input" placeholder="text me anything..." style="flex:1;height:44px" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" autocomplete="off"/>
+      <input id="chat-input" type="text" class="form-input" placeholder="Ask about your tasks..." style="flex:1;height:44px" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}" autocomplete="off"/>
       <button class="btn btn-primary" id="chat-send-btn" onclick="sendChat()" style="height:44px;padding:0 16px">
         <span id="chat-send-icon"></span>
       </button>
@@ -144,11 +144,11 @@
 
     <!-- Quick chips -->
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
-      <button class="chip" onclick="askQuick('hey')">👋 hey</button>
-      <button class="chip" onclick="askQuick('what should I do first?')">what first?</button>
-      <button class="chip" onclick="askQuick('anything overdue?')">overdue?</button>
-      <button class="chip" onclick="askQuick('how am I doing?')">how am i doing</button>
-      <button class="chip" onclick="askQuick('im feeling lazy')">i'm lazy 😴</button>
+      <button class="chip" onclick="askQuick('What should I focus on first?')">What to focus on</button>
+      <button class="chip" onclick="askQuick('Is anything overdue?')">Overdue</button>
+      <button class="chip" onclick="askQuick('Show my high priority tasks')">High priority</button>
+      <button class="chip" onclick="askQuick('How am I doing this week?')">My progress</button>
+      <button class="chip" onclick="askQuick('Give me a productivity check-in')">Check-in</button>
     </div>
   </div>
 
