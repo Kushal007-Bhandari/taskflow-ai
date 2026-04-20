@@ -189,31 +189,47 @@ ${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name}: ${userMessage} [/INST
 
   // ── Fallback Chat ──────────────────────────────────────────
   _fallbackChat(question, ctx) {
-    const { name, total, completed, overdue, rate, doneTasks, openTasks, overdueT, cats, bestDay, rangeLabel } = ctx;
+    const { name, total, completed, overdue, rate, doneTasks, openTasks, overdueT, cats } = ctx;
     const q = question.toLowerCase().trim();
 
-    if (/^(hi|hey|hello|howdy|sup|yo|good)/.test(q)) {
-      if (total === 0) return `Hey ${name}! 👋 No tasks yet — add some from the dashboard and come back!`;
-      return `Hey ${name}! 👋 Here's your snapshot: ${total} tasks ${rangeLabel}, ${completed} completed (${rate}%), ${openTasks.length} still pending${overdue > 0 ? `, ${overdue} overdue` : ''}. What would you like to know?`;
+    // Greetings — casual, short
+    if (/^(hi|hey|hello|howdy|sup|yo|good|wassup|whats up)/.test(q)) {
+      if (total === 0) return `hey! you haven't added any tasks yet — want to?`;
+      if (overdue > 0) return `hey 👋 you've got ${overdue} overdue — wanna tackle those?`;
+      return `hey! what's up 👋`;
     }
+    // Feelings / casual
+    if (/^(i'?m |im |feeling )(tired|bored|stressed|anxious|sad|lazy|overwhelmed)/.test(q)) {
+      if (/tired|lazy/.test(q)) return `rough day huh. wanna skip the list or knock out something small?`;
+      if (/stressed|anxious|overwhelmed/.test(q)) return `take a breath. just pick one thing — what's bugging you most?`;
+      if (/bored/.test(q)) return `lol same. pick the easiest thing on your list and knock it out?`;
+      return `i hear you. one step at a time.`;
+    }
+    if (/thank|thanks|thx/.test(q)) return `anytime 🙂`;
+    if (/^(bye|gtg|later|cya)/.test(q)) return `later! go crush it`;
+
     if (/overdue|late|past due|missed/.test(q)) {
-      if (!overdueT.length) return `Great news ${name} — no overdue tasks! 🎉`;
-      return `You have ${overdueT.length} overdue task${overdueT.length > 1 ? 's' : ''}: ${overdueT.map(t => `"${t.title}" (${t.priority})`).join(', ')}. Tackle the highest priority one first!`;
+      if (!overdueT.length) return `nothing overdue, you're good 🎉`;
+      const t = overdueT[0];
+      if (overdueT.length === 1) return `just "${t.title}" — knock it out`;
+      return `${overdueT.length} overdue. start with "${t.title}"`;
     }
-    if (/pending|remaining|left|not done|incomplete/.test(q)) {
-      if (!openTasks.length) return `Everything's done ${name}! 🎉`;
-      return `${openTasks.length} pending: ${openTasks.slice(0,5).map(t => `"${t.title}" (${t.priority})`).join(', ')}${openTasks.length > 5 ? ` and ${openTasks.length - 5} more` : ''}.`;
+    if (/pending|remaining|left|not done/.test(q)) {
+      if (!openTasks.length) return `all done! 🎉`;
+      if (openTasks.length <= 2) return `${openTasks.map(t => `"${t.title}"`).join(' and ')}`;
+      return `${openTasks.length} pending. want me to pick the top one?`;
     }
     if (/complet|done|finish|achiev/.test(q)) {
-      if (!doneTasks.length) return `No completed tasks ${rangeLabel} yet — go mark something done!`;
-      return `${completed} completed ${rangeLabel}: ${doneTasks.slice(0,4).map(t => `"${t.title}"`).join(', ')}.`;
+      if (!doneTasks.length) return `none yet — go check something off!`;
+      return `${completed} done so far. nice 👍`;
     }
     if (/high|urgent|important/.test(q)) {
       const high = openTasks.filter(t => t.priority === 'high');
-      if (!high.length) return `No high-priority tasks pending right now!`;
-      return `${high.length} high-priority pending: ${high.map(t => `"${t.title}"`).join(', ')}.`;
+      if (!high.length) return `no high priority pending. breathe 😌`;
+      if (high.length === 1) return `just "${high[0].title}"`;
+      return `${high.map(t => `"${t.title}"`).join(', ')}`;
     }
-    if (/focus|today|next|should i|start|work on/.test(q)) {
+    if (/focus|today|next|should i|start|work on|priorit/.test(q)) {
       const score = (t) => {
         const PRI = { high:3, medium:2, low:1 };
         const pri = (PRI[t.priority]||1)*3;
@@ -224,24 +240,28 @@ ${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name}: ${userMessage} [/INST
         return pri+ov2+age;
       };
       const top = [...openTasks].sort((a,b)=>score(b)-score(a))[0];
-      if (!top) return `No pending tasks ${name} — you're all clear!`;
-      const desc = top.description?.trim();
-      return `Focus on "${top.title}" first${desc?` — ${desc}`:''}. It's ${top.priority} priority with a score of ${Math.round(score(top))}.`;
+      if (!top) return `nothing pending. take a break 🙂`;
+      return `start with "${top.title}" — ${top.priority} priority${top.due_date ? ', due soon' : ''}`;
     }
-    if (/rate|percent|score|how.*doing|progress/.test(q)) {
-      return `Your completion rate ${rangeLabel} is ${rate}% (${completed}/${total}). ${rate>=70?'🔥 Excellent!':rate>=50?'👍 Good progress!':'💪 Keep pushing!'}`;
+    if (/rate|percent|how.*doing|progress/.test(q)) {
+      if (total === 0) return `no data yet — add some tasks first!`;
+      if (rate >= 75) return `${rate}% — you're crushing it 🔥`;
+      if (rate >= 50) return `${rate}% — solid 👍`;
+      if (rate >= 25) return `${rate}%. let's push it up`;
+      return `${rate}%. rough patch, but you got this 💪`;
     }
     if (/categor/.test(q)) {
-      if (!cats.length) return `No category data available yet.`;
-      return `Category breakdown: ${cats.map(c=>`${c.name}: ${c.done}/${c.total} (${c.rate}%)`).join(', ')}.`;
+      if (!cats.length) return `no categories yet`;
+      const top = cats.sort((a,b) => b.done - a.done)[0];
+      return `${top.name} is your strongest — ${top.done}/${top.total} done`;
     }
-    // Search for specific task by name
+    // Specific task search
     const found = [...doneTasks,...openTasks].find(t => t.title?.toLowerCase().includes(q));
     if (found) {
       const desc = found.description?.trim();
-      return `"${found.title}": ${desc||'No description.'} Status: ${found.status}, Priority: ${found.priority}${found.due_date?`, Due: ${String(found.due_date).split('T')[0]}`:''}`;
+      return `"${found.title}" — ${found.status}, ${found.priority} priority${desc?`. ${desc}`:''}`;
     }
-    // General question — AI API is offline, give honest response
-    return `I'm a productivity assistant for ${name}. My AI model is currently warming up so I can only answer task-related questions right now. Try asking: "What's overdue?", "What should I focus on?", "How am I doing?", or "Show my pending tasks." For general questions, please try again in a moment when the AI model is ready.`;
+    // AI offline — short honest reply
+    return `my brain's loading — try again in a sec 🔄`;
   },
 };
