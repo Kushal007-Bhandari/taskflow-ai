@@ -1,5 +1,5 @@
-// js/ai.js — Full AI module: Summary + Chat
-// Builds rich context from all task data, calls Mistral-7B server-side
+// js/ai.js — AI module: Summary + Chat
+// Builds rich context from all task data, calls Groq (Llama 3.3 70B) server-side
 
 const AI = {
 
@@ -157,13 +157,6 @@ const AI = {
 
     onProgress?.('Crafting your personal summary...');
 
-    const prompt = `<s>[INST] You are ${name}'s personal productivity coach. Write a warm, personal 4-5 sentence message using ONLY the data below. Requirements: address ${name} by name, mention 2-3 actual task titles in quotes, use real numbers, give 1 specific actionable tip based on their weakest area. Sound like a supportive friend, not a robot. Never invent data.
-
-TASK DATA:
-${context}
-
-Write ${name}'s productivity message now: [/INST]`;
-
     try {
       const res = await fetch('/api/ai-summary', {
         method: 'POST',
@@ -171,7 +164,7 @@ Write ${name}'s productivity message now: [/INST]`;
         body: JSON.stringify({ mode: 'summary', context, name, ...AI._extras(ctx) }),
       });
       const data = await res.json().catch(() => ({}));
-      // Mistral returned a real response
+      // Groq returned a real response
       if (data.summary && data.summary.length > 20) {
         return { text: data.summary, source: data.source || 'groq-llama3' };
       }
@@ -191,24 +184,6 @@ Write ${name}'s productivity message now: [/INST]`;
   async chat(userMessage, history, statsData, userName) {
     const ctx = AI.buildContext(statsData, userName, statsData?.range || 30);
     const { context, name } = ctx;
-
-    const turns = history.slice(-8).map(m =>
-      m.role === 'user' ? `${name}: ${m.content}` : `Assistant: ${m.content}`
-    ).join('\n');
-
-    const prompt = `<s>[INST] You are a smart, friendly personal assistant for ${name}. You have access to their task and productivity data below. You can:
-- Answer questions about their tasks, progress, and productivity
-- Give productivity advice and motivation
-- Have normal friendly conversations
-- Help them think through problems
-- Answer general questions
-
-Be warm, natural, and conversational — like a knowledgeable friend. Use their task data when relevant, but don't limit yourself to only that. Keep responses concise.
-
-${name}'s TASK DATA:
-${context}
-
-${turns ? `CONVERSATION SO FAR:\n${turns}\n` : ''}${name}: ${userMessage} [/INST]`;
 
     try {
       const res = await fetch('/api/ai-summary', {

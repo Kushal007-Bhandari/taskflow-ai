@@ -1,13 +1,13 @@
 // js/config.js
 // ============================================================
 // TaskFlow AI — Configuration
-// Fill in your details after setting up Neon + Netlify
+// Fill in your details after setting up Neon + Vercel
 // ============================================================
 
 const CONFIG = {
-  // Your Netlify site URL (use '/.netlify/functions' for local dev)
-  // Example: 'https://your-site.netlify.app'
-  API_BASE: '',  // Leave empty for same-origin (Netlify auto-handles)
+  // Leave empty for same-origin (Vercel serves both frontend and api/ from the same domain)
+  // For local dev with `vercel dev`, empty string still works correctly
+  API_BASE: '',
 
   APP_NAME: 'TaskFlow',
   APP_TAGLINE: 'AI-Powered Productivity',

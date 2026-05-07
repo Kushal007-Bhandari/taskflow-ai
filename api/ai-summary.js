@@ -1,4 +1,6 @@
-// api/ai-summary.js — uses Groq (Llama 3.3 70B) instead of Hugging Face
+// api/ai-summary.js — Groq Cloud proxy (Llama 3.3 70B Versatile)
+import { neon } from '@neondatabase/serverless';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -6,6 +8,15 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // ── Session validation (same pattern as todos.js, categories.js, stats.js) ──
+  const sql = neon(process.env.DATABASE_URL);
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  const [session] = await sql`SELECT user_id FROM sessions WHERE token = ${token} AND expires_at > NOW()`;
+  if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const GROQ_KEY = process.env.GROQ_API_KEY;
   if (!GROQ_KEY) return res.status(200).json({ summary: null, source: 'no-key' });
@@ -92,7 +103,7 @@ ${context}`;
         model: 'llama-3.3-70b-versatile',
         messages,
         max_tokens:  isChat ? 220 : 300,
-        temperature: isChat ? 0.75 : 0.75,
+        temperature: 0.75,
         top_p: 0.92,
       }),
     });

@@ -102,16 +102,16 @@ const Auth = {
     window.location.href = '/index.html';
   },
 
-  // Require auth — redirect to login if not logged in
+  // Require auth — verify session with server and redirect to login if invalid
   async requireAuth() {
     if (!this.isLoggedIn()) {
       window.location.href = '/index.html';
       return null;
     }
-    // Optionally verify with server (uncomment for stricter auth)
-    // const user = await this.verify();
-    // if (!user) { window.location.href = '/index.html'; return null; }
-    return this.getUser();
+    // Server-side verification: catches revoked/expired sessions immediately
+    const user = await this.verify();
+    if (!user) { window.location.href = '/index.html'; return null; }
+    return user;
   },
 
   // Require guest — redirect to dashboard if already logged in
